@@ -5,18 +5,26 @@ extern crate clap;
 extern crate fern;
 
 use clap::{App, Arg, ArgMatches};
+use std::fs::File;
+use std::io::ErrorKind;
+
+const DEFAULT_CONFIG_FILE: &str = "~/.config/ignore-ng/config";
 
 // TODO: populate this
-#[allow(dead_code)]
-fn read_config_file() {}
-
-// TODO: populate this
-#[allow(dead_code)]
-pub fn get_args() {}
+pub fn parse_config_file() {
+    let config_file = File::open(DEFAULT_CONFIG_FILE).unwrap_or_else(|err| {
+        if err.kind() == ErrorKind::NotFound {
+            File::create(DEFAULT_CONFIG_FILE).expect("Could not create default config file")
+        } else {
+            // Panic?
+            warn!("Could not open config file: {:?}", err);
+        }
+    });
+}
 
 pub fn parse_flags() -> Result<ArgMatches<'static>, fern::InitError> {
     let matches = App::new("ignore-ng")
-        .version("0.1.0")
+        .version(env!("CARGO_PKG_VERSION"))
         .about("Generated .gitignore files")
         .author("fisherprime")
         .arg(
@@ -42,15 +50,13 @@ pub fn parse_flags() -> Result<ArgMatches<'static>, fern::InitError> {
         .get_matches();
     debug!("Parsed command flags");
 
-    if let Err(err) = setup_logger(&matches) {
-        return Err(err);
-    }
-    debug!("Logger is set up");
+    setup_logger(&matches)?;
+    debug!("Logger is up");
 
     Ok(matches)
 }
 
-pub fn setup_logger(matches: &ArgMatches) -> Result<(), fern::InitError> {
+fn setup_logger(matches: &ArgMatches) -> Result<(), fern::InitError> {
     let log_max_level = match matches.occurrences_of("verbosity") {
         0 => log::LevelFilter::Info,
         1 => log::LevelFilter::Debug,
