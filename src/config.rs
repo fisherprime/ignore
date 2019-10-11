@@ -2,10 +2,13 @@
 
 extern crate chrono;
 extern crate clap;
+extern crate dirs;
 extern crate fern;
+extern crate regex;
 extern crate toml;
 
 use clap::{App, Arg, ArgMatches};
+use regex::Regex;
 use std::fs::File;
 use std::io::ErrorKind;
 
@@ -37,16 +40,39 @@ pub fn parse_config_file() {
                 app_config = toml::from_str(&config_string.trim()).unwrap();
             }
             
+            // TODO: review this
             info!("Config file is empty");
+            let r_path = r_parent_dir.push(Regex::new(URL_PREFIX_REGEX)
+                    .unwrap()
+                    .replace(&app_config.repo_url, ""));
+
+            r_parent_dir = dirs::cache_dir().unwrap();
+            r_parent_dir.push("ignore-ng/repos");
+
+            app_config = &mut Config {
+                config_file: app_config.config_file,
+                repo_url: default_gitignore_repo.to_string(),
+                repo_parent_dir: r_parent_dir.into_os_string().to_str().unwrap(),
+                repo_path: r_path.into_os_string().to_str().unwrap(),
+            };
+
             // Populate with defaults & use defaults
         }
+
         Err(err) => panic!("Could not read config file contents: {:?}", err),
     }
 }
 
-pub fn parse_flags() -> Result<ArgMatches<'static>, fern::InitError> {
+pub fn parse_flags() -> Result<(ArgMatches<'static>, Config), ()> {
+    let default_config_file = dirs::config_dir().unwrap();
+    default_config_file.push("ignore-ng/config.toml");
+
+    let config_file: &str;
+    let mut app_config: Config;
+
+    // env!("CARGO_PKG_VERSION")
     let matches = App::new("ignore-ng")
-        .version(env!("CARGO_PKG_VERSION"))
+        .version(crate_version!())
         .about("Generated .gitignore files")
         .author("fisherprime")
         .arg(
