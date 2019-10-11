@@ -3,12 +3,22 @@
 extern crate chrono;
 extern crate clap;
 extern crate fern;
+extern crate toml;
 
 use clap::{App, Arg, ArgMatches};
 use std::fs::File;
 use std::io::ErrorKind;
 
 const DEFAULT_CONFIG_FILE: &str = "~/.config/ignore-ng/config";
+#[derive(Deserialize, Debug)]
+pub struct Config {
+    pub config_file: String,
+    pub gitignore_repo: String,
+    pub repo_parent_dir: String,
+    pub repo_path: String,
+    pub repo_url: String,
+}
+
 
 // TODO: populate this
 pub fn parse_config_file() {
@@ -20,6 +30,18 @@ pub fn parse_config_file() {
             warn!("Could not open config file: {:?}", err);
         }
     });
+
+    match config_file.read_to_string(&mut config_string) {
+        Ok(size) => {
+            if size > 0 {
+                app_config = toml::from_str(&config_string.trim()).unwrap();
+            }
+            
+            info!("Config file is empty");
+            // Populate with defaults & use defaults
+        }
+        Err(err) => panic!("Could not read config file contents: {:?}", err),
+    }
 }
 
 pub fn parse_flags() -> Result<ArgMatches<'static>, fern::InitError> {
@@ -41,6 +63,8 @@ pub fn parse_flags() -> Result<ArgMatches<'static>, fern::InitError> {
                 "List language(s), tool(s) and/or project template(s) to generate .gitignore from")
                 .takes_value(true),
         )
+        .arg(Arg::with_name("config")
+            .short("c").long("config").help("Specify alternative config file to use"))
         .arg(
             Arg::with_name("verbosity")
                 .short("v")
