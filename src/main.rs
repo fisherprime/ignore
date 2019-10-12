@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-// Loading macros must be at the crate root
+// Loading macros must be done at the crate root
 #[macro_use]
 extern crate log;
 
