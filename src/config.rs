@@ -9,65 +9,96 @@ extern crate toml;
 
 use clap::{App, Arg, ArgMatches};
 use regex::Regex;
+use serde::{Deserialize, Serialize};
 use std::fs::File;
 use std::io::ErrorKind;
+use std::io::{Read, Write};
+use std::path::PathBuf;
 
-const DEFAULT_CONFIG_FILE: &str = "~/.config/ignore-ng/config";
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Serialize, Debug)]
 pub struct Config {
-    pub config_file: String,
-    pub gitignore_repo: String,
-    pub repo_parent_dir: String,
-    pub repo_path: String,
-    pub repo_url: String,
+    pub repo_parent_dir: &'static str,
+    pub repo_path: &'static str,
+    pub repo_url: &'static str,
 }
 
+// REF: https://mathiasbynens.be/demo/url-regex
+// TODO: validate regex
+const URL_PREFIX_REGEX: &str =
+    r"#(?i)\b((?:[a-z][\w-]+:(?:/{1,3}|[a-z0-9%])|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2,4}/)";
 
-// TODO: populate this
-pub fn parse_config_file() {
-    let config_file = File::open(DEFAULT_CONFIG_FILE).unwrap_or_else(|err| {
+pub fn parse_config_file(app_config: &mut Config, config_file_path: &str) {
+    let default_gitignore_repo: &str = "https://github.com/github/gitignore";
+    let r_path: &str;
+
+    let config_string: String;
+
+    let default_config_file: PathBuf;
+    let r_parent_dir: PathBuf;
+
+    let toml_config: Config;
+
+    let config_file: File;
+
+    default_config_file = dirs::config_dir().unwrap();
+    default_config_file.push("ignore-ng/config.toml");
+
+    /* if let Some(path) = dirs::config_dir() {
+     *     path.push("ignore-ng/config.toml");
+     *     default_config_file = path;
+     * } */
+
+    config_file = File::open(config_file_path).unwrap_or_else(|err| {
         if err.kind() == ErrorKind::NotFound {
-            File::create(DEFAULT_CONFIG_FILE).expect("Could not create default config file")
+            if config_file_path.eq(default_config_file.into_os_string().to_str().unwrap()) {
+                File::create(config_file_path).expect("Could not create default config file")
+            } else {
+                panic!("Could not find config file: {:?}", err);
+            }
         } else {
-            // Panic?
-            warn!("Could not open config file: {:?}", err);
+            panic!("Could not open config file: {:?}", err);
         }
     });
 
     match config_file.read_to_string(&mut config_string) {
         Ok(size) => {
             if size > 0 {
-                app_config = toml::from_str(&config_string.trim()).unwrap();
+                // Returns here
+                toml_config: Config = toml::from_str(&config_string.trim()).unwrap();
+                app_config = &mut toml_config
             }
-            
-            // TODO: review this
+
             info!("Config file is empty");
-            let r_path = r_parent_dir.push(Regex::new(URL_PREFIX_REGEX)
-                    .unwrap()
-                    .replace(&app_config.repo_url, ""));
+            r_path = &Regex::new(URL_PREFIX_REGEX)
+                .unwrap()
+                .replace(app_config.repo_url, "");
 
             r_parent_dir = dirs::cache_dir().unwrap();
             r_parent_dir.push("ignore-ng/repos");
 
+            // Populate config with defaults
             app_config = &mut Config {
-                config_file: app_config.config_file,
-                repo_url: default_gitignore_repo.to_string(),
+                repo_url: default_gitignore_repo,
                 repo_parent_dir: r_parent_dir.into_os_string().to_str().unwrap(),
-                repo_path: r_path.into_os_string().to_str().unwrap(),
+                repo_path: r_path,
             };
+            debug!("Using default config values");
 
-            // Populate with defaults & use defaults
+            // Write default config to file
+            config_file
+                .write_all(toml::to_string(&app_config).unwrap().as_bytes())
+                .unwrap();
+            debug!("Updated config file with config values")
         }
-
         Err(err) => panic!("Could not read config file contents: {:?}", err),
     }
 }
 
 pub fn parse_flags() -> Result<(ArgMatches<'static>, Config), ()> {
-    let default_config_file = dirs::config_dir().unwrap();
-    default_config_file.push("ignore-ng/config.toml");
-
     let config_file: &str;
+
+    let default_config_file: PathBuf;
+
     let mut app_config: Config;
 
     // env!("CARGO_PKG_VERSION")
@@ -100,10 +131,24 @@ pub fn parse_flags() -> Result<(ArgMatches<'static>, Config), ()> {
         .get_matches();
     debug!("Parsed command flags");
 
-    setup_logger(&matches)?;
+    setup_logger(&matches).unwrap();
     debug!("Logger is up");
 
-    Ok(matches)
+    default_config_file = dirs::config_dir().unwrap();
+    default_config_file.push("ignore-ng/config.toml");
+
+    if let Some(path) = matches.value_of("config") {
+        parse_config_file(&mut app_config, path);
+        debug!("Using user supplied config file path");
+    } else {
+        parse_config_file(
+            &mut app_config,
+            default_config_file.into_os_string().to_str().unwrap(),
+        );
+        debug!("Using default config file path");
+    }
+
+    Ok((matches, app_config))
 }
 
 fn setup_logger(matches: &ArgMatches) -> Result<(), fern::InitError> {
