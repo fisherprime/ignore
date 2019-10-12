@@ -5,6 +5,7 @@
 extern crate log;
 
 #[macro_use]
+extern crate clap;
 
 mod app;
 mod config;
