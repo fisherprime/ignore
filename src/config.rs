@@ -5,6 +5,7 @@ extern crate clap;
 extern crate dirs;
 extern crate fern;
 extern crate regex;
+extern crate serde;
 extern crate toml;
 
 use clap::{App, Arg, ArgMatches};
