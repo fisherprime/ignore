@@ -2,32 +2,28 @@
 
 extern crate git2;
 
+use crate::config::Config;
 use clap::ArgMatches;
 use git2::Repository;
 
 use std::collections::btree_map::BTreeMap;
-use std::fs::File;
+use std::fs;
+use std::fs::DirEntry;
 use std::io::{Error, Read};
 
-const REPO_PARENT_DIR: &str = "~/.cache/ignore-ng/repos/";
-
-// const DEFAULT_REPO_DIR: &str = format!("{}/{}", REPO_PARENT_DIR, DEFAULT_REPO_NAME);
-const DEFAULT_GITIGNORE_REPO: &str = "https://github.com/github/gitignore";
-const DEFAULT_REPO_NAME: &str = "github/gitignore";
-
 // TODO: populate this
-pub fn generate_gitignore(matches: &ArgMatches) -> Result<(), std::io::Error> {
+pub fn generate_gitignore(matches: &ArgMatches, app_config: &Config) -> Result<(), std::io::Error> {
     let available_templates =
         parse_templates(matches).expect("Failed to parse the template arguments");
 
-    // Scan through gitignore dir
+    // Iterate over global_list, opening necessary file & concatenating them
     // File::open();
     Ok(())
 }
 
 // TODO: populate this
-pub fn list_templates() -> Result<(), std::io::Error> {
-    // Read from global_list
+pub fn list_templates(app_config: &Config) -> Result<(), std::io::Error> {
+    // Iterate over global_list printing keys
     Ok(())
 }
 
@@ -51,9 +47,9 @@ fn parse_templates(matches: &ArgMatches) -> Result<Vec<&'static str>, Error> {
 }
 
 // TODO: populate this
-fn update_gitignore_repo(repo_dir: &str, repo_url: &str) -> Result<(), git2::Error> {
-    match Repository::open(repo_dir) {
-        Ok(_repo) => {
+fn update_gitignore_repo(config: &Config) -> Result<(), git2::Error> {
+    match Repository::open(config.repo_path) {
+        Ok(repo) => {
             /* repo.stash_save(signature, flags)?;
              * repo.stash_drop(index)?; */
 
@@ -62,14 +58,17 @@ fn update_gitignore_repo(repo_dir: &str, repo_url: &str) -> Result<(), git2::Err
         Err(_) => {
             info!("Repository not cached locally, cloning");
 
-            match Repository::clone_recurse(repo_url, repo_dir) {
+            match Repository::clone_recurse(&config.repo_url, &config.repo_path) {
                 Ok(_) => {
-                    debug!("Repository cloned from upstream");
+                    info!("Repository cloned from upstream");
 
                     Ok(())
                 }
                 Err(err) => {
-                    warn!("Failed to clone: {} into: {}", repo_url, repo_dir);
+                    error!(
+                        "Failed to clone: {} into: {:?}",
+                        config.repo_url, config.repo_path
+                    );
 
                     Err(err)
                 }
@@ -79,6 +78,24 @@ fn update_gitignore_repo(repo_dir: &str, repo_url: &str) -> Result<(), git2::Err
 }
 
 // TODO: populate this
-fn update_global_list(repo_dir: &str, global_list: &BTreeMap<&str, &str>) {
+fn update_global_list(dir: &str, global_list: &BTreeMap<&str, &str>) -> Result<(), std::io::Error> {
     // Store template name & path in hashmap
+
+    for entry in fs::read_dir(dir) {
+        let file = entry?;
+
+        if fs::metadata(file.path).unwrap().is_dir() {
+            update_global_list(file, global_list).unwrap();
+        }
+    }
+
+    Ok(())
+}
+
+fn is_hidden(entry: &DirEntry) -> bool {
+    entry
+        .file_name()
+        .to_str()
+        .map(|f_name| f_name.starts_with("."))
+        .unwrap_or(false)
 }
