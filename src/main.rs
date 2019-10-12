@@ -10,7 +10,7 @@ extern crate clap;
 mod app;
 mod config;
 
-use app::{list_templates, generate_gitignore};
+use app::{generate_gitignore, list_templates};
 use config::parse_flags;
 
 fn main() {
