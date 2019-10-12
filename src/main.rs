@@ -14,15 +14,15 @@ use app::{list_templates, generate_gitignore};
 use config::parse_flags;
 
 fn main() {
-    let matches = parse_flags().unwrap();
+    let (matches, app_config) = parse_flags().unwrap();
 
     if matches.value_of("list").is_some() {
-        list_templates();
+        list_templates(&app_config);
 
         return;
     };
 
     if matches.is_present("template") {
-        generate_gitignore(&matches);
+        generate_gitignore(&matches, &app_config);
     }
 }
