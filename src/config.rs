@@ -68,6 +68,10 @@ pub struct RepoConfig {
             panic!("Could not open config file: {:?}", err);
         }
     });
+pub struct Options<'a> {
+    pub generate_gitignore: bool,
+    pub list_templates: bool,
+    pub update_repo: bool,
 
     match config_file.read_to_string(&mut config_string) {
         Ok(size) => {
