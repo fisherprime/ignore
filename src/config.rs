@@ -17,15 +17,18 @@ use std::path::PathBuf;
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct Config {
-    pub repo_parent_dir: &'static str,
-    pub repo_path: &'static str,
-    pub repo_url: &'static str,
+    pub core: CoreConfig,
+    pub repo: RepoConfig,
 }
 
 // REF: https://mathiasbynens.be/demo/url-regex
 // TODO: validate regex
 const URL_PREFIX_REGEX: &str =
     r"#(?i)\b((?:[a-z][\w-]+:(?:/{1,3}|[a-z0-9%])|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2,4}/)";
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub struct CoreConfig {
+    pub last_run: SystemTime,
+}
 
 pub fn parse_config_file(app_config: &mut Config, config_file_path: &str) {
     let default_gitignore_repo: &str = "https://github.com/github/gitignore";
@@ -47,6 +50,12 @@ pub fn parse_config_file(app_config: &mut Config, config_file_path: &str) {
      *     path.push("ignore-ng/config.toml");
      *     default_config_file = path;
      * } */
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub struct RepoConfig {
+    pub repo_parent_dir: String,
+    pub repo_path: String,
+    pub repo_url: String,
+}
 
     config_file = File::open(config_file_path).unwrap_or_else(|err| {
         if err.kind() == ErrorKind::NotFound {
