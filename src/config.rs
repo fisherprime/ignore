@@ -151,9 +151,7 @@ impl Config {
             template_paths: BTreeMap::<&str, &str>::new(),
         };
 
-        // Beware of move at this point
-        let app_config_clone = app_config.clone();
-        if let Some(cfg) = app_config_clone.parse_config_file(&matches) {
+        if let Some(cfg) = app_config.parse_config_file(&matches) {
             debug!("{:?}", &cfg);
             app_config = cfg;
         }
@@ -161,7 +159,8 @@ impl Config {
         Some((app_config, app_options))
     }
 
-    fn parse_config_file(self, matches: &ArgMatches) -> Option<Config> {
+    // Passing a reference to avoid taking ownership
+    fn parse_config_file(&self, matches: &ArgMatches) -> Option<Config> {
         let config: Config;
 
         let mut config_string = String::new();
