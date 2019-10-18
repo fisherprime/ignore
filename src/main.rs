@@ -10,19 +10,23 @@ extern crate clap;
 mod app;
 mod config;
 
-use app::{generate_gitignore, list_templates};
-use config::parse_flags;
+use app::{generate_gitignore, list_templates, update_gitignore_repo};
+use config::Config;
 
 fn main() {
-    let (matches, app_config) = parse_flags().unwrap();
+    if let Some((app_config, mut app_options)) = Config::parse() {
+        if app_options.update_repo {
+            update_gitignore_repo(&app_config).unwrap();
+        }
 
-    if matches.value_of("list").is_some() {
-        list_templates(&app_config);
+        if app_options.list_templates {
+            list_templates(&app_config, &mut app_options)
+        }
 
-        return;
-    };
+        if app_options.generate_gitignore {
+            generate_gitignore(&app_config, &app_options).unwrap();
+        }
 
-    if matches.is_present("template") {
-        generate_gitignore(&matches, &app_config);
+        // app_config.update_config_file(&app_options.config_path);
     }
 }
