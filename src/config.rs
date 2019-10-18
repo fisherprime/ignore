@@ -7,24 +7,24 @@ extern crate regex;
 extern crate serde;
 extern crate toml;
 
+// use regex::Regex;
 use clap::{App, Arg, ArgMatches};
-use regex::Regex;
 use serde::{Deserialize, Serialize};
-use std::fs::File;
-use std::io::ErrorKind;
-use std::io::{Read, Write};
-use std::path::PathBuf;
+use std::collections::btree_map::BTreeMap;
+use std::ffi::OsString;
+use std::fs::{DirBuilder, File, OpenOptions};
+use std::io::{ErrorKind, Read, Write};
+use std::path::{Path, PathBuf};
+use std::time::{Duration, SystemTime};
 
-#[derive(Deserialize, Serialize, Debug)]
+const REPO_UPDATE_LIMIT: u64 = 60 * 60 * 24 * 7;
+
+#[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct Config {
     pub core: CoreConfig,
     pub repo: RepoConfig,
 }
 
-// REF: https://mathiasbynens.be/demo/url-regex
-// TODO: validate regex
-const URL_PREFIX_REGEX: &str =
-    r"#(?i)\b((?:[a-z][\w-]+:(?:/{1,3}|[a-z0-9%])|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2,4}/)";
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct CoreConfig {
     pub last_run: SystemTime,
@@ -64,6 +64,7 @@ impl Config {
         let now = SystemTime::now();
 
         // env!("CARGO_PKG_VERSION")
+        // Doesn't live long enough
         matches = App::new("ignore-ng")
         .version(crate_version!())
         .about("Generated .gitignore files")
@@ -133,6 +134,7 @@ impl Config {
                 > Duration::new(REPO_UPDATE_LIMIT, 0))
                 || (now.duration_since(app_config.core.last_run).unwrap() == Duration::new(0, 500)),
             config_path: "".to_string(),
+
             templates: match matches.values_of("template") {
                 /*                 Some(templates_vec) => {
                  *                     // TODO: fix, Error 515, cannot borrow local variable, function param or temporary variable
@@ -278,6 +280,11 @@ impl Config {
         debug!("Updated config file with config values");
     }
 }
+
+// REF: https://mathiasbynens.be/demo/url-regex
+// TODO: validate regex
+/* const URL_PREFIX_REGEX: &str = */
+/* r"#(?i)\b((?:[a-z][\w-]+:(?:/{1,3}|[a-z0-9%])|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2,4}/))"; */
 
 fn setup_logger(matches: &ArgMatches) -> Result<(), fern::InitError> {
     let log_max_level = match matches.occurrences_of("verbosity") {
