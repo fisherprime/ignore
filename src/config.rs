@@ -37,12 +37,14 @@ pub struct RepoConfig {
     pub repo_url: String,
 }
 
+#[derive(Debug)]
 pub struct Options {
     pub generate_gitignore: bool,
     pub list_templates: bool,
     pub update_repo: bool,
 
     pub config_path: String,
+    pub output_file: String,
 
     pub templates: Vec<String>,
 
@@ -51,6 +53,8 @@ pub struct Options {
 
 impl Config {
     pub fn parse() -> Option<(Config, Options)> {
+        debug!("Parsing command arguments & config file");
+
         let mut app_config: Config;
         let app_options: Options;
 
@@ -73,29 +77,43 @@ impl Config {
             Arg::with_name("list")
                 .short("l")
                 .long("list")
-                .help("List all available languages, tools & projects"),
+                .help("List all available languages, tools & projects."),
         )
         .arg(
             Arg::with_name("template")
                 .short("t")
                 .long("templates")
+                .value_name("TEMPLATE")
+                .takes_value(true)
+                .multiple(true)
                 .help(
-                "List language(s), tool(s) and/or project template(s) to generate .gitignore from")
-                .takes_value(true),
+                "Case sensitive specification of language(s), tool(s) and/or project template(s) to use in generating .gitignore."),
         )
+        .arg(
+            Arg::with_name("output")
+            .short("o")
+            .long("output")
+            .value_name("FILE")
+            .takes_value(true)
+            .help("Specify output filename, defaults to: gitignore-ng."),
+            )
         .arg(Arg::with_name("config")
-            .short("c").long("config").help("Specify alternative config file to use"))
+            .short("c")
+            .long("config")
+            .value_name("FILE")
+            .takes_value(true)
+            .help("Specify alternative config file to use."))
         .arg(
             Arg::with_name("verbosity")
                 .short("v")
+                .long("verbose")
                 .multiple(true)
-                .help("Set the level of verbosity for logs: -v, -vv"),
+                .help("Set the level of verbosity for logs: -v, -vv."),
         )
         .get_matches();
-        debug!("Parsed command flags");
+        debug!("Done parsing command flags");
 
-        setup_logger(&matches).unwrap();
-        debug!("Logger is up");
+        setup_logger(&matches).expect("Error setting up logger");
 
         /*
          *     let re = Regex::new(URL_PREFIX_REGEX)
@@ -111,7 +129,7 @@ impl Config {
             gitignore_repo_split[gitignore_split_len - 2],
             gitignore_repo_split[gitignore_split_len - 1]
         );
-        r_parent_dir = dirs::cache_dir().unwrap();
+        r_parent_dir = dirs::cache_dir().expect("Error obtaining system's cache directory");
         r_parent_dir.push("ignore-ng/repos");
 
         app_config = Config {
@@ -133,7 +151,10 @@ impl Config {
                 > Duration::new(REPO_UPDATE_LIMIT, 0))
                 || (now.duration_since(app_config.core.last_run).unwrap() == Duration::new(0, 500)),
             config_path: "".to_string(),
-
+            output_file: matches
+                .value_of("output")
+                .unwrap_or("gitignore-ng")
+                .to_string(),
             templates: match matches.values_of("template") {
                 Some(templates_vec) => {
                     let mut temp_string_vec: Vec<String> = Vec::new();
@@ -151,15 +172,20 @@ impl Config {
         };
 
         if let Some(cfg) = app_config.parse_config_file(&matches) {
-            debug!("{:?}", &cfg);
             app_config = cfg;
         }
+
+        debug!("Done parsing command arguments & config file");
+        debug!("Config: {:?}", app_config);
+        debug!("Options: {:?}", app_options);
 
         Some((app_config, app_options))
     }
 
     // Passing a reference to avoid taking ownership
     fn parse_config_file(&self, matches: &ArgMatches) -> Option<Config> {
+        debug!("Parsing config file");
+
         let config: Config;
 
         let mut config_string = String::new();
@@ -173,7 +199,8 @@ impl Config {
 
         let read_bytes: usize;
 
-        default_config_file = dirs::config_dir().unwrap();
+        default_config_file =
+            dirs::config_dir().expect("Error obtaining system's config directory");
         default_config_file.push("ignore-ng/config.toml");
 
         if let Some(path) = matches.value_of("config") {
@@ -201,12 +228,14 @@ impl Config {
                         // Create config directory
                         if let Some(conf_dir) = Path::new(&config_file_path).parent() {
                             if !conf_dir.is_dir() {
-                                DirBuilder::new().recursive(true).create(conf_dir).unwrap();
+                                DirBuilder::new()
+                                    .recursive(true)
+                                    .create(conf_dir)
+                                    .expect("Error creating config file directory hierarchy");
                             }
                         }
 
-                        File::create(config_file_path)
-                            .expect("Could not create default config file")
+                        File::create(config_file_path).expect("Error creating default config file")
                     } else {
                         panic!("Could not find config file: {:?}", err);
                     }
@@ -235,6 +264,7 @@ impl Config {
         if read_bytes > 0 {
             // Temporary value dropped
             config = toml::from_str(config_string.trim()).unwrap();
+            debug!("Done parsing config file");
 
             return Some(config);
         }
@@ -245,11 +275,13 @@ impl Config {
         config_file
             .write_all(
                 toml::to_string(&self)
-                    .unwrap_or_else(|e| panic!("blaaaa {:?}", e))
+                    .expect("Error writing to config file")
                     .as_bytes(),
             )
             .unwrap();
         debug!("Updated config file with config values");
+
+        debug!("Done parsing config file");
 
         None
     }
@@ -270,7 +302,7 @@ impl Config {
         config_file
             .write_all(
                 toml::to_string(&self)
-                    .unwrap_or_else(|e| panic!("blaaaa {:?}", e))
+                    .expect("Error writing to config file")
                     .as_bytes(),
             )
             .unwrap();
@@ -284,6 +316,8 @@ impl Config {
 /* r"#(?i)\b((?:[a-z][\w-]+:(?:/{1,3}|[a-z0-9%])|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2,4}/))"; */
 
 fn setup_logger(matches: &ArgMatches) -> Result<(), fern::InitError> {
+    debug!("Setting up logger");
+
     let log_max_level = match matches.occurrences_of("verbosity") {
         0 => log::LevelFilter::Info,
         1 => log::LevelFilter::Debug,
@@ -305,6 +339,9 @@ fn setup_logger(matches: &ArgMatches) -> Result<(), fern::InitError> {
         .chain(std::io::stdout())
         // .chain(fern::log_file("output.log")?)
         .apply()?;
+
+    debug!("Done setting up logger");
+
     Ok(())
 }
 
