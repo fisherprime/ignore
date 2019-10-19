@@ -1,5 +1,5 @@
 <a name=""></a>
-##  (2019-10-18)
+##  (2019-10-19)
 
 
 #### Performance
@@ -12,6 +12,7 @@
   *  Remove app_config cloning ([eeac5794](eeac5794))
   *  Rework functions into struct methods ([9241a390](9241a390))
   *  Section the Config struct ([d141d133](d141d133))
+* **main.rs:**  Replace unwrap with expect ([cb3302d0](cb3302d0))
 
 #### Features
 
@@ -29,4 +30,6 @@
 
 #### Bug Fixes
 
-* **config.rs:**  Fix WIP linter warnings ([19f7d843](19f7d843))
+* **config.rs:**
+  *  Remove lifetimes & change to String ([c1dfd9d9](c1dfd9d9))
+  *  Fix WIP linter warnings ([19f7d843](19f7d843))
