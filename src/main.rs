@@ -16,7 +16,7 @@ use config::Config;
 fn main() {
     if let Some((app_config, mut app_options)) = Config::parse() {
         if app_options.update_repo {
-            update_gitignore_repo(&app_config).unwrap();
+            update_gitignore_repo(&app_config).expect("Error updating gitignore repo");
         }
 
         if app_options.list_templates {
@@ -24,7 +24,7 @@ fn main() {
         }
 
         if app_options.generate_gitignore {
-            generate_gitignore(&app_config, &app_options).unwrap();
+            generate_gitignore(&app_config, &mut app_options).expect("Error generating .gitignore file");
         }
 
         // app_config.update_config_file(&app_options.config_path);
