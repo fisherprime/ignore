@@ -37,27 +37,27 @@ pub struct RepoConfig {
     pub repo_url: String,
 }
 
-pub struct Options<'a> {
+pub struct Options {
     pub generate_gitignore: bool,
     pub list_templates: bool,
     pub update_repo: bool,
 
     pub config_path: String,
 
-    pub templates: Vec<&'a str>,
+    pub templates: Vec<String>,
 
-    pub template_paths: BTreeMap<&'a str, &'a str>,
+    pub template_paths: BTreeMap<String, String>,
 }
 
 impl Config {
-    pub fn parse<'main>() -> Option<(Config, Options<'main>)> {
+    pub fn parse() -> Option<(Config, Options)> {
         let mut app_config: Config;
         let app_options: Options;
 
         let matches: ArgMatches;
 
-        let default_gitignore_repo: &str = "https://github.com/github/gitignore";
-        let r_path: &str;
+        let default_gitignore_repo: String = "https://github.com/github/gitignore".to_string();
+        let r_path: String;
 
         let mut r_parent_dir: PathBuf;
 
@@ -105,13 +105,12 @@ impl Config {
         // TODO: fix, messy section
         let gitignore_repo_split: Vec<&str> = default_gitignore_repo.split('/').collect();
         let gitignore_split_len = gitignore_repo_split.len();
-        let format_path = format!(
+
+        r_path = format!(
             "{}/{}",
             gitignore_repo_split[gitignore_split_len - 2],
             gitignore_repo_split[gitignore_split_len - 1]
         );
-
-        r_path = format_path.trim();
         r_parent_dir = dirs::cache_dir().unwrap();
         r_parent_dir.push("ignore-ng/repos");
 
@@ -121,9 +120,9 @@ impl Config {
                 last_run: now - Duration::new(0, 500),
             },
             repo: RepoConfig {
-                repo_url: String::from(default_gitignore_repo),
+                repo_url: default_gitignore_repo,
                 repo_parent_dir: r_parent_dir.into_os_string().into_string().unwrap(),
-                repo_path: String::from(r_path),
+                repo_path: r_path,
             },
         };
 
@@ -136,21 +135,19 @@ impl Config {
             config_path: "".to_string(),
 
             templates: match matches.values_of("template") {
-                /*                 Some(templates_vec) => {
-                 *                     // TODO: fix, Error 515, cannot borrow local variable, function param or temporary variable
-                 *                     let mut new = Vec::<&str>::new();
-                 *                     for item in templates_vec.collect::<Vec<&str>>() {
-                 *                         new.push(&item);
-                 *                     }
-                 *
-                 *                     new
-                 *
-                 *                     // templates_vec.collect::<Vec<&str>>()
-                 *                 } */
-                Some(_) => [""].to_vec(),
-                None => [""].to_vec(),
+                Some(templates_vec) => {
+                    let mut temp_string_vec: Vec<String> = Vec::new();
+                    let temp_str_vec = templates_vec.collect::<Vec<&str>>();
+
+                    for template in temp_str_vec {
+                        temp_string_vec.push(template.to_string());
+                    }
+
+                    temp_string_vec
+                }
+                None => ["".to_string()].to_vec(),
             },
-            template_paths: BTreeMap::<&str, &str>::new(),
+            template_paths: BTreeMap::<String, String>::new(),
         };
 
         if let Some(cfg) = app_config.parse_config_file(&matches) {
