@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 
+// extern crate regex;
 extern crate chrono;
 extern crate dirs;
 extern crate fern;
-extern crate regex;
 extern crate serde;
 extern crate toml;
 
