@@ -1,5 +1,5 @@
 <a name=""></a>
-##  (2019-10-19)
+##  (2019-10-20)
 
 
 #### Performance
@@ -8,6 +8,7 @@
   *  Move clap create (+macro) loading to root ([627f2345](627f2345))
   *  Move serde crate loading to config.rs ([202a40cc](202a40cc))
   *  Add Cargo.lock to .gitignore ([4cf2f01d](4cf2f01d))
+* **config.re:**  Comment out unused crate ([199ce723](199ce723))
 * **config.rs:**
   *  Remove app_config cloning ([eeac5794](eeac5794))
   *  Rework functions into struct methods ([9241a390](9241a390))
@@ -30,6 +31,7 @@
 
 #### Bug Fixes
 
+* **app.rs:**  Fix consolidation file overwrite ([a1869487](a1869487))
 * **config.rs:**
   *  Remove lifetimes & change to String ([c1dfd9d9](c1dfd9d9))
   *  Fix WIP linter warnings ([19f7d843](19f7d843))
