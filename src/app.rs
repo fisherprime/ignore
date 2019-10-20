@@ -64,6 +64,7 @@ pub fn generate_gitignore(app_config: &Config, app_options: &mut Options) -> Res
         debug!("Written {} to consolidation string", file_path);
     }
 
+    consolidation_file.set_len(0).expect("Error truncating consolodation file");
     consolidation_file
         .write_all(consolidation_string.as_bytes())
         .expect("Error writing to gitignore consolidation file");
