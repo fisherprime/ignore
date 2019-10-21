@@ -4,10 +4,9 @@ extern crate git2;
 
 use crate::config::Options;
 
-use chrono::Utc;
-use git2::{Commit, MergeOptions, Repository, Signature, StashFlags, Time};
+use git2::build::CheckoutBuilder;
+use git2::{Object, Repository};
 use std::collections::btree_map::BTreeMap;
-// use std::ffi::OsString;
 use std::fs::{self, DirBuilder, DirEntry, File, OpenOptions};
 use std::io::{self, Read, Write};
 use std::path::Path;
@@ -64,7 +63,9 @@ pub fn generate_gitignore(app_options: &mut Options) -> Result<(), io::Error> {
         debug!("Written {} to consolidation string", file_path);
     }
 
-    consolidation_file.set_len(0).expect("Error truncating consolodation file");
+    consolidation_file
+        .set_len(0)
+        .expect("Error truncating consolidation file");
     consolidation_file
         .write_all(consolidation_string.as_bytes())
         .expect("Error writing to gitignore consolidation file");
@@ -113,7 +114,7 @@ pub fn list_templates(app_options: &mut Options) {
     }
     println!("{}", list_string);
 
-    debug!("Done listing available templates");
+    info!("Done listing available templates");
 }
 
 // Generate a B-tree map of available requested templates
@@ -153,21 +154,20 @@ fn parse_templates(app_options: &mut Options) -> Result<BTreeMap<String, String>
 pub fn update_gitignore_repo(app_options: &Options) -> Result<(), git2::Error> {
     info!("Updating gitignore repo");
 
-    // Note: values in a scope are dropped in their order of creation
-    let mut repo: Repository;
     let absolute_repo_path: String;
 
-    let timezone_offset = 60 * 3;
+    let repo: Repository;
 
-    let fetch_head_commit: Commit;
-    let current_head_commit: Commit;
+    let fetch_head: Object;
+
+    let mut checkout = CheckoutBuilder::new();
 
     absolute_repo_path = format!(
         "{}/{}",
         app_options.config.repo.repo_parent_dir, app_options.config.repo.repo_path
     );
 
-    repo = Repository::open(&absolute_repo_path).unwrap_or_else(|_| {
+    repo = Repository::discover(&absolute_repo_path).unwrap_or_else(|_| {
         info!("Repository not cached locally, cloning");
 
         let err_string = &format!(
@@ -184,49 +184,22 @@ pub fn update_gitignore_repo(app_options: &Options) -> Result<(), git2::Error> {
             .expect(err_string)
     });
 
-    // Stash current state, then drop it
-    info!("Stashing & clearing changes to repo");
-    let result_oid = repo
-        .stash_save(
-            &Signature::new(
-                "name",
-                "e@mail.com",
-                &Time::new(Utc::now().timestamp(), timezone_offset),
-            )
-            .expect("Error stashing local changes to gitignore repo"),
-            "",
-            Some(StashFlags::DEFAULT),
-        )
-        .unwrap_or_else(|_| {
-            info!("Nothing to stash");
-            git2::Oid::zero()
-        });
+    debug!("Repository is available");
 
-    if result_oid == git2::Oid::zero() {
-        debug!("Done updating gitignore repo: unchanged");
-        return Ok(());
-    }
+    repo.find_remote("origin")
+        .unwrap()
+        .fetch(&["master"], None, None)
+        .expect("Failed to fetch remote repo");
 
-    repo.stash_drop(0)?;
-    debug!("Dropped latest stashed commit");
-
-    // Pull changes from remote repository
-    // REF: https://stackoverflow.com/questions/54100789/how-is-git-pull-done-with-the-git2-rs-rust-crate
-    current_head_commit = repo.head()?.peel_to_commit()?;
-    fetch_head_commit = repo
+    fetch_head = repo
         .find_reference("FETCH_HEAD")
         .unwrap()
-        .peel_to_commit()
-        .unwrap();
+        .peel(git2::ObjectType::Any)
+        .expect("Error peeling object from FETCH_HEAD reference");
+    repo.reset(&fetch_head, git2::ResetType::Hard, Some(&mut checkout))
+        .expect("Error resetting repo head to FETCH_HEAD");
 
-    repo.merge_commits(
-        &current_head_commit,
-        &fetch_head_commit,
-        Some(&MergeOptions::new()),
-    )
-    .expect("Error merging current commit level with fetched HEAD");
-
-    debug!("Done updating gitignore repo");
+    info!("Done updating gitignore repo");
 
     Ok(())
 }
