@@ -27,6 +27,6 @@ fn main() {
             generate_gitignore(&mut app_options).expect("Error generating .gitignore file");
         }
 
-        // app_config.update_config_file(&app_options.config_path);
+        app_options.save();
     }
 }
