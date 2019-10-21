@@ -1,13 +1,24 @@
 <a name=""></a>
-##  (2019-10-20)
+##  (2019-10-21)
 
+
+#### Bug Fixes
+
+* **app.rs:**
+  *  Fix repository update function ([afd88a19](afd88a19))
+  *  Fix consolidation file overwrite ([a1869487](a1869487))
+* **config.rs:**
+  *  Remove lifetimes & change to String ([c1dfd9d9](c1dfd9d9))
+  *  Fix WIP linter warnings ([19f7d843](19f7d843))
 
 #### Performance
 
 * ***:**
+  *  Change Config to a member of Options ([489f53c7](489f53c7))
   *  Move clap create (+macro) loading to root ([627f2345](627f2345))
   *  Move serde crate loading to config.rs ([202a40cc](202a40cc))
   *  Add Cargo.lock to .gitignore ([4cf2f01d](4cf2f01d))
+* **Config.toml:**  Remove ref to unused crate ([e65a0407](e65a0407))
 * **config.re:**  Comment out unused crate ([199ce723](199ce723))
 * **config.rs:**
   *  Remove app_config cloning ([eeac5794](eeac5794))
@@ -25,13 +36,8 @@
 * **CHANGELOG.md:**  Add CHANGELOG ([38f844c6](38f844c6))
 * **LICENSE.md:**  Add licence file ([1d44689c](1d44689c))
 * **README.md:**  Add README ([6363f29c](6363f29c))
-* **app.rs:**  Add WIP ([25cb5f41](25cb5f41))
+* **app.rs:**
+  *  Enable the config save function ([045289c7](045289c7))
+  *  Add WIP ([25cb5f41](25cb5f41))
 * **config.rs:**  Add the Options struct ([3acbead2](3acbead2))
 * **src/*.rs:**  Populate initial files with code ([0d1fbc57](0d1fbc57))
-
-#### Bug Fixes
-
-* **app.rs:**  Fix consolidation file overwrite ([a1869487](a1869487))
-* **config.rs:**
-  *  Remove lifetimes & change to String ([c1dfd9d9](c1dfd9d9))
-  *  Fix WIP linter warnings ([19f7d843](19f7d843))
