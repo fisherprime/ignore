@@ -1,17 +1,15 @@
 // SPDX-License-Identifier: MIT
 
-// extern crate regex;
 extern crate chrono;
 extern crate dirs;
 extern crate fern;
 extern crate serde;
 extern crate toml;
 
-// use regex::Regex;
+// use std::ffi::OsString;
 use clap::{App, Arg, ArgMatches};
 use serde::{Deserialize, Serialize};
 use std::collections::btree_map::BTreeMap;
-use std::ffi::OsString;
 use std::fs::{DirBuilder, File, OpenOptions};
 use std::io::{ErrorKind, Read, Write};
 use std::path::{Path, PathBuf};
@@ -21,45 +19,61 @@ const REPO_UPDATE_LIMIT: u64 = 60 * 60 * 24 * 7;
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct Config {
+    // Binary specific configuration options
     pub core: CoreConfig,
+
+    // Repository specific configuration options
+    // TODO: look into providing for multiple template sources
     pub repo: RepoConfig,
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct CoreConfig {
+    // Timestamp of the last time the binary was run
     pub last_run: SystemTime,
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct RepoConfig {
+    // Directory containing gitignore repositories
     pub repo_parent_dir: String,
+
+    // Relative path (to repo_parent_dir) of gitignore template repo to use
     pub repo_path: String,
+
+    // URL of git repository containing gitignore templates
     pub repo_url: String,
 }
 
 #[derive(Debug)]
 pub struct Options {
+    // Config read from file
+    pub config: Config,
+
+    // Option to generate gitignore file
     pub generate_gitignore: bool,
+
+    // Option to list available templates
     pub list_templates: bool,
+
+    // Option to update repository
     pub update_repo: bool,
 
+    // Path to configuration file
     pub config_path: String,
+
+    // Path to output generated gitignore
     pub output_file: String,
 
+    // List of templates user desires to use in gitignore generation
     pub templates: Vec<String>,
 
+    // B-Tree hash map of all available template paths
     pub template_paths: BTreeMap<String, String>,
 }
 
 impl Config {
-    pub fn parse() -> Option<(Config, Options)> {
-        debug!("Parsing command arguments & config file");
-
-        let mut app_config: Config;
-        let app_options: Options;
-
-        let matches: ArgMatches;
-
+    pub fn new() -> Config {
         let default_gitignore_repo: String = "https://github.com/github/gitignore".to_string();
         let r_path: String;
 
@@ -67,60 +81,8 @@ impl Config {
 
         let now = SystemTime::now();
 
-        // env!("CARGO_PKG_VERSION")
-        // Doesn't live long enough
-        matches = App::new("ignore-ng")
-        .version(crate_version!())
-        .about("Generated .gitignore files")
-        .author("fisherprime")
-        .arg(
-            Arg::with_name("list")
-                .short("l")
-                .long("list")
-                .help("List all available languages, tools & projects."),
-        )
-        .arg(
-            Arg::with_name("template")
-                .short("t")
-                .long("templates")
-                .value_name("TEMPLATE")
-                .takes_value(true)
-                .multiple(true)
-                .help(
-                "Case sensitive specification of language(s), tool(s) and/or project template(s) to use in generating .gitignore."),
-        )
-        .arg(
-            Arg::with_name("output")
-            .short("o")
-            .long("output")
-            .value_name("FILE")
-            .takes_value(true)
-            .help("Specify output filename, defaults to: gitignore-ng."),
-            )
-        .arg(Arg::with_name("config")
-            .short("c")
-            .long("config")
-            .value_name("FILE")
-            .takes_value(true)
-            .help("Specify alternative config file to use."))
-        .arg(
-            Arg::with_name("verbosity")
-                .short("v")
-                .long("verbose")
-                .multiple(true)
-                .help("Set the level of verbosity for logs: -v, -vv."),
-        )
-        .get_matches();
-        debug!("Done parsing command flags");
-
-        setup_logger(&matches).expect("Error setting up logger");
-
-        /*
-         *     let re = Regex::new(URL_PREFIX_REGEX)
-         *         .unwrap()
-         *         .replace(default_gitignore_repo, ""); */
-
         // TODO: fix, messy section
+        // Get repo_path as defined in the Options struct
         let gitignore_repo_split: Vec<&str> = default_gitignore_repo.split('/').collect();
         let gitignore_split_len = gitignore_repo_split.len();
 
@@ -132,7 +94,7 @@ impl Config {
         r_parent_dir = dirs::cache_dir().expect("Error obtaining system's cache directory");
         r_parent_dir.push("ignore-ng/repos");
 
-        app_config = Config {
+        Config {
             core: CoreConfig {
                 // Sort out duration since error
                 last_run: now - Duration::new(0, 500),
@@ -142,58 +104,19 @@ impl Config {
                 repo_parent_dir: r_parent_dir.into_os_string().into_string().unwrap(),
                 repo_path: r_path,
             },
-        };
-
-        app_options = Options {
-            generate_gitignore: matches.is_present("template"),
-            list_templates: matches.is_present("list"),
-            update_repo: (now.duration_since(app_config.core.last_run).unwrap()
-                > Duration::new(REPO_UPDATE_LIMIT, 0))
-                || (now.duration_since(app_config.core.last_run).unwrap() == Duration::new(0, 500)),
-            config_path: "".to_string(),
-            output_file: matches
-                .value_of("output")
-                .unwrap_or("gitignore-ng")
-                .to_string(),
-            templates: match matches.values_of("template") {
-                Some(templates_vec) => {
-                    let mut temp_string_vec: Vec<String> = Vec::new();
-                    let temp_str_vec = templates_vec.collect::<Vec<&str>>();
-
-                    for template in temp_str_vec {
-                        temp_string_vec.push(template.to_string());
-                    }
-
-                    temp_string_vec
-                }
-                None => ["".to_string()].to_vec(),
-            },
-            template_paths: BTreeMap::<String, String>::new(),
-        };
-
-        if let Some(cfg) = app_config.parse_config_file(&matches) {
-            app_config = cfg;
         }
-
-        debug!("Done parsing command arguments & config file");
-        debug!("Config: {:?}", app_config);
-        debug!("Options: {:?}", app_options);
-
-        Some((app_config, app_options))
     }
 
+    // Parse config file contents
     // Passing a reference to avoid taking ownership
-    fn parse_config_file(&self, matches: &ArgMatches) -> Option<Config> {
+    fn parse(&self, config_file_path: &str) -> Option<Config> {
         debug!("Parsing config file");
 
         let config: Config;
 
         let mut config_string = String::new();
-        let mut config_file_path = String::new();
 
         let mut default_config_file: PathBuf;
-
-        let def_cfg_os_str: OsString;
 
         let mut config_file: File;
 
@@ -203,29 +126,15 @@ impl Config {
             dirs::config_dir().expect("Error obtaining system's config directory");
         default_config_file.push("ignore-ng/config.toml");
 
-        if let Some(path) = matches.value_of("config") {
-            config_file_path = path.to_string();
-
-            debug!("Using user supplied config file path");
-        } else {
-            def_cfg_os_str = default_config_file.clone().into_os_string();
-
-            if let Some(cfg_str) = def_cfg_os_str.to_str() {
-                config_file_path = cfg_str.to_string();
-            }
-
-            debug!("Using default config file path");
-        }
-
         config_file = OpenOptions::new()
             .read(true)
             .write(true)
             .create(true)
-            .open(&config_file_path)
+            .open(config_file_path)
             .unwrap_or_else(|err| {
                 if err.kind() == ErrorKind::NotFound {
                     if config_file_path.eq(default_config_file.into_os_string().to_str().unwrap()) {
-                        // Create config directory
+                        // Create default config directory
                         if let Some(conf_dir) = Path::new(&config_file_path).parent() {
                             if !conf_dir.is_dir() {
                                 DirBuilder::new()
@@ -285,28 +194,129 @@ impl Config {
 
         None
     }
+}
 
-    #[allow(dead_code)]
-    pub fn update_config_file(self, config_file_path: &str) {
+impl Options {
+    // Parse command arguments
+    pub fn parse() -> Option<(Options)> {
+        debug!("Parsing command arguments & config file");
+
+        let mut config_file_path = String::new();
+
+        let mut default_config_file: PathBuf;
+
+        let app_config = Config::new();
+        let app_options: Options;
+
+        let matches: ArgMatches;
+
+        let now = SystemTime::now();
+
+        // env!("CARGO_PKG_VERSION")
+        // Doesn't live long enough
+        matches = App::new("ignore-ng")
+        .version(crate_version!())
+        .about("Generated .gitignore files")
+        .author("fisherprime")
+        .arg(Arg::with_name("config").short("c").long("config").value_name("FILE").takes_value(true).help("Specify alternative config file to use."))
+        .arg(Arg::with_name("list").short("l").long("list").help("List all available languages, tools & projects."))
+        .arg(Arg::with_name("output").short("o").long("output").value_name("FILE").takes_value(true).help("Specify output filename, defaults to: gitignore-ng."))
+        .arg(Arg::with_name("template").short("t").long("templates").value_name("TEMPLATE").takes_value(true).multiple(true).help("Case sensitive specification of language(s), tool(s) and/or project template(s) to use in generating .gitignore."))
+        .arg(Arg::with_name("update").short("u").long("update").help("Manually update the gitignore template repo"))
+        .arg(Arg::with_name("verbosity").short("v").long("verbose").multiple(true).help("Set the level of verbosity for logs: -v, -vv."))
+        .get_matches();
+        debug!("Done parsing command flags");
+
+        setup_logger(&matches).expect("Error setting up logger");
+
+        default_config_file =
+            dirs::config_dir().expect("Error obtaining system's config directory");
+        default_config_file.push("ignore-ng/config.toml");
+
+        if let Some(path) = matches.value_of("config") {
+            config_file_path = path.to_string();
+
+            debug!("Using user supplied config file path");
+        } else {
+            let def_cfg_os_str = default_config_file.into_os_string();
+
+            if let Some(cfg_str) = def_cfg_os_str.to_str() {
+                config_file_path = cfg_str.to_string();
+            }
+
+            debug!("Using default config file path");
+        }
+
+        /* // Create repo_path from repo_url
+         * let re = Regex::new(URL_PREFIX_REGEX)
+         *     .unwrap()
+         *     .replace(default_gitignore_repo, ""); */
+
+        app_options = Options {
+            config: match app_config.parse(&config_file_path) {
+                Some(cfg) => cfg,
+                None => app_config.clone(),
+            },
+            generate_gitignore: matches.is_present("template"),
+            list_templates: matches.is_present("list"),
+            update_repo: if matches.is_present("update") {
+                true
+            } else {
+                (now.duration_since(app_config.core.last_run).unwrap()
+                    > Duration::new(REPO_UPDATE_LIMIT, 0))
+                    || (now.duration_since(app_config.core.last_run).unwrap()
+                        == Duration::new(0, 500))
+            },
+            config_path: config_file_path,
+            output_file: matches
+                .value_of("output")
+                .unwrap_or("gitignore-ng")
+                .to_string(),
+            templates: match matches.values_of("template") {
+                Some(templates_vec) => {
+                    let mut temp_string_vec: Vec<String> = Vec::new();
+                    let temp_str_vec = templates_vec.collect::<Vec<&str>>();
+
+                    for template in temp_str_vec {
+                        temp_string_vec.push(template.to_string());
+                    }
+
+                    temp_string_vec
+                }
+                None => ["".to_string()].to_vec(),
+            },
+            template_paths: BTreeMap::<String, String>::new(),
+        };
+
+        debug!("Done parsing command arguments & config file");
+        debug!("Options: {:?}", app_options);
+
+        Some(app_options)
+    }
+
+    pub fn save(self) {
         let mut config_file: File;
 
-        debug!("Config file path: {}", config_file_path);
+        debug!("Updating config in file path: {}", self.config_path);
 
         config_file = OpenOptions::new()
             .read(true)
             .write(true)
             .create(true)
-            .open(config_file_path)
+            .open(self.config_path)
             .unwrap();
 
         config_file
+            .set_len(0)
+            .expect("Error truncating config file");
+        config_file
             .write_all(
-                toml::to_string(&self)
+                toml::to_string(&self.config)
                     .expect("Error writing to config file")
                     .as_bytes(),
             )
-            .unwrap();
-        debug!("Updated config file with config values");
+            .expect("Error writing to config file");
+        debug!("Updated config file");
     }
 }
 
@@ -318,27 +328,46 @@ impl Config {
 fn setup_logger(matches: &ArgMatches) -> Result<(), fern::InitError> {
     debug!("Setting up logger");
 
+    let mut verbose = true;
+
     let log_max_level = match matches.occurrences_of("verbosity") {
-        0 => log::LevelFilter::Info,
+        0 => {
+            verbose = false;
+            log::LevelFilter::Info
+        }
         1 => log::LevelFilter::Debug,
         2 => log::LevelFilter::Trace,
-        _ => log::LevelFilter::Off,
+        _ => {
+            verbose = false;
+            log::LevelFilter::Off
+        }
     };
 
-    fern::Dispatch::new()
-        .format(|out, message, record| {
-            out.finish(format_args!(
-                "{}[{}][{}] {}",
-                chrono::Local::now().format("[%Y-%m-%d][%H:%M:%S]"),
-                record.target(),
-                record.level(),
-                message
-            ))
-        })
-        .level(log_max_level)
-        .chain(std::io::stdout())
-        // .chain(fern::log_file("output.log")?)
-        .apply()?;
+    if verbose {
+        fern::Dispatch::new()
+            .format(|out, message, record| {
+                out.finish(format_args!(
+                    "{}[{}][{}] {}",
+                    chrono::Local::now().format("[%Y-%m-%d][%H:%M:%S]"),
+                    record.target(),
+                    record.level(),
+                    message
+                ))
+            })
+            .level(log_max_level)
+            .chain(std::io::stdout())
+            // .chain(fern::log_file("output.log")?)
+            .apply()?;
+    } else {
+        fern::Dispatch::new()
+            .format(|out, message, record| {
+                out.finish(format_args!("[{}] {}", record.level(), message))
+            })
+            .level(log_max_level)
+            .chain(std::io::stdout())
+            // .chain(fern::log_file("output.log")?)
+            .apply()?;
+    }
 
     debug!("Done setting up logger");
 

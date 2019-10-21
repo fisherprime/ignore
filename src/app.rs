@@ -2,7 +2,7 @@
 
 extern crate git2;
 
-use crate::config::{Config, Options};
+use crate::config::Options;
 
 use chrono::Utc;
 use git2::{Commit, MergeOptions, Repository, Signature, StashFlags, Time};
@@ -12,8 +12,8 @@ use std::fs::{self, DirBuilder, DirEntry, File, OpenOptions};
 use std::io::{self, Read, Write};
 use std::path::Path;
 
-pub fn generate_gitignore(app_config: &Config, app_options: &mut Options) -> Result<(), io::Error> {
-    debug!("Generating gitignore");
+pub fn generate_gitignore(app_options: &mut Options) -> Result<(), io::Error> {
+    info!("Generating gitignore");
 
     let delimiter = "# ----";
     let available_templates: BTreeMap<String, String>;
@@ -31,7 +31,7 @@ pub fn generate_gitignore(app_config: &Config, app_options: &mut Options) -> Res
     debug!("Opened gitignore consolidation file");
 
     available_templates =
-        parse_templates(&app_config, app_options).expect("Failed to parse the template argument");
+        parse_templates(app_options).expect("Failed to parse the template argument");
     debug!("Available templates: {:?}", available_templates);
 
     if available_templates.is_empty() {
@@ -73,8 +73,8 @@ pub fn generate_gitignore(app_config: &Config, app_options: &mut Options) -> Res
     Ok(())
 }
 
-pub fn list_templates(app_config: &Config, app_options: &mut Options) {
-    debug!("Listing available templates");
+pub fn list_templates(app_options: &mut Options) {
+    info!("Listing available templates");
 
     let list_width = 6;
 
@@ -85,7 +85,7 @@ pub fn list_templates(app_config: &Config, app_options: &mut Options) {
 
     absolute_repo_path = format!(
         "{}/{}",
-        app_config.repo.repo_parent_dir, app_config.repo.repo_path
+        app_options.config.repo.repo_parent_dir, app_options.config.repo.repo_path
     );
 
     update_template_paths(
@@ -117,10 +117,7 @@ pub fn list_templates(app_config: &Config, app_options: &mut Options) {
 }
 
 // Generate a B-tree map of available requested templates
-fn parse_templates(
-    app_config: &Config,
-    app_options: &mut Options,
-) -> Result<BTreeMap<String, String>, io::Error> {
+fn parse_templates(app_options: &mut Options) -> Result<BTreeMap<String, String>, io::Error> {
     debug!("Parsing template options");
 
     let absolute_repo_path: String;
@@ -132,7 +129,7 @@ fn parse_templates(
 
     absolute_repo_path = format!(
         "{}/{}",
-        app_config.repo.repo_parent_dir, app_config.repo.repo_path
+        app_options.config.repo.repo_parent_dir, app_options.config.repo.repo_path
     );
 
     update_template_paths(&Path::new(&absolute_repo_path), &mut template_paths)
@@ -152,9 +149,9 @@ fn parse_templates(
     Ok(available_templates)
 }
 
-// TODO: validate this
-pub fn update_gitignore_repo(app_config: &Config) -> Result<(), git2::Error> {
-    debug!("Updating gitignore repo");
+// REF: https://github.com/nabijaczleweli/cargo-update/blob/master/src/ops/mod.rs
+pub fn update_gitignore_repo(app_options: &Options) -> Result<(), git2::Error> {
+    info!("Updating gitignore repo");
 
     // Note: values in a scope are dropped in their order of creation
     let mut repo: Repository;
@@ -167,7 +164,7 @@ pub fn update_gitignore_repo(app_config: &Config) -> Result<(), git2::Error> {
 
     absolute_repo_path = format!(
         "{}/{}",
-        app_config.repo.repo_parent_dir, app_config.repo.repo_path
+        app_options.config.repo.repo_parent_dir, app_options.config.repo.repo_path
     );
 
     repo = Repository::open(&absolute_repo_path).unwrap_or_else(|_| {
@@ -175,16 +172,16 @@ pub fn update_gitignore_repo(app_config: &Config) -> Result<(), git2::Error> {
 
         let err_string = &format!(
             "Failed to clone: {} into: {:?}",
-            app_config.repo.repo_url, app_config.repo.repo_path
+            app_options.config.repo.repo_url, app_options.config.repo.repo_path
         );
 
         DirBuilder::new()
             .recursive(true)
-            .create(&app_config.repo.repo_parent_dir)
+            .create(&app_options.config.repo.repo_parent_dir)
             .expect("Error creating repository cache directory hierarchy");
 
-        Repository::clone_recurse(&app_config.repo.repo_url, &absolute_repo_path).expect(err_string)
-        // info!("Repository cloned");
+        Repository::clone_recurse(&app_options.config.repo.repo_url, &absolute_repo_path)
+            .expect(err_string)
     });
 
     // Stash current state, then drop it

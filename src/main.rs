@@ -11,20 +11,20 @@ mod app;
 mod config;
 
 use app::{generate_gitignore, list_templates, update_gitignore_repo};
-use config::Config;
+use config::Options;
 
 fn main() {
-    if let Some((app_config, mut app_options)) = Config::parse() {
+    if let Some(mut app_options) = Options::parse() {
         if app_options.update_repo {
-            update_gitignore_repo(&app_config).expect("Error updating gitignore repo");
+            update_gitignore_repo(&app_options).expect("Error updating gitignore repo")
         }
 
         if app_options.list_templates {
-            list_templates(&app_config, &mut app_options)
+            list_templates(&mut app_options)
         }
 
         if app_options.generate_gitignore {
-            generate_gitignore(&app_config, &mut app_options).expect("Error generating .gitignore file");
+            generate_gitignore(&mut app_options).expect("Error generating .gitignore file");
         }
 
         // app_config.update_config_file(&app_options.config_path);
