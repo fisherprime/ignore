@@ -1,5 +1,5 @@
 <a name=""></a>
-##  (2019-10-21)
+##  (2019-10-23)
 
 
 #### Features
@@ -18,15 +18,6 @@
 * **config.rs:**  Add the Options struct ([3acbead2](3acbead2))
 * **src/*.rs:**  Populate initial files with code ([0d1fbc57](0d1fbc57))
 
-#### Bug Fixes
-
-* **app.rs:**
-  *  Fix repository update function ([afd88a19](afd88a19))
-  *  Fix consolidation file overwrite ([a1869487](a1869487))
-* **config.rs:**
-  *  Remove lifetimes & change to String ([c1dfd9d9](c1dfd9d9))
-  *  Fix WIP linter warnings ([19f7d843](19f7d843))
-
 #### Performance
 
 * ***:**
@@ -41,3 +32,12 @@
   *  Rework functions into struct methods ([9241a390](9241a390))
   *  Section the Config struct ([d141d133](d141d133))
 * **main.rs:**  Replace unwrap with expect ([cb3302d0](cb3302d0))
+
+#### Bug Fixes
+
+* **app.rs:**
+  *  Fix repository update function ([afd88a19](afd88a19))
+  *  Fix consolidation file overwrite ([a1869487](a1869487))
+* **config.rs:**
+  *  Remove lifetimes & change to String ([c1dfd9d9](c1dfd9d9))
+  *  Fix WIP linter warnings ([19f7d843](19f7d843))
