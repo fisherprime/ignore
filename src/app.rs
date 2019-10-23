@@ -8,7 +8,8 @@ use git2::build::CheckoutBuilder;
 use git2::{Object, Repository};
 use std::collections::btree_map::BTreeMap;
 use std::fs::{self, DirBuilder, DirEntry, File, OpenOptions};
-use std::io::{self, Read, Write};
+use std::io;
+use std::io::prelude::*;
 use std::path::Path;
 
 pub fn generate_gitignore(app_options: &mut Options) -> Result<(), io::Error> {

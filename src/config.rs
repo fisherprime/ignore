@@ -11,7 +11,8 @@ use clap::{App, Arg, ArgMatches};
 use serde::{Deserialize, Serialize};
 use std::collections::btree_map::BTreeMap;
 use std::fs::{DirBuilder, File, OpenOptions};
-use std::io::{ErrorKind, Read, Write};
+use std::io::prelude::*;
+use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime};
 
