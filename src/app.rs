@@ -16,7 +16,7 @@ pub fn generate_gitignore(app_options: &mut Options) -> Result<(), io::Error> {
     info!("Generating gitignore");
 
     let delimiter = "# ----";
-    let available_templates: BTreeMap<String, String>;
+    let available_templates: BTreeMap<String, Vec<String>>;
 
     let mut consolidation_file: File;
 
@@ -40,28 +40,28 @@ pub fn generate_gitignore(app_options: &mut Options) -> Result<(), io::Error> {
     }
 
     // Iterate over template_paths, opening necessary file & concatenating them
-    for (template, file_path) in available_templates {
-        // I get how this works, but feels like magic
-        // Using file_path as a reference to avoid moving value
-        let file_path = &file_path;
+    for (template, file_paths) in available_templates {
+        let file_paths = &file_paths;
 
-        debug!("Parsing: {}", file_path);
+        for file_path in file_paths {
+            debug!("Parsing: {}", file_path);
 
-        let mut template_string = String::new();
+            let mut template_string = String::new();
 
-        let mut template_file = File::open(file_path).unwrap_or_else(|err| {
-            // Prefer to break out of the loop
-            panic!("Error opening gitignore template file: {:?}", err);
-            // error!("Error opening gitignore template file: {:?}", err);
-        });
+            let mut template_file = File::open(file_path).unwrap_or_else(|err| {
+                // Prefer to break out of the loop
+                panic!("Error opening gitignore template file: {:?}", err);
+                // error!("Error opening gitignore template file: {:?}", err);
+            });
 
-        template_file
-            .read_to_string(&mut template_string)
-            .expect("Error reading template file");
-        consolidation_string += format!("\n# {}\n", template).as_str();
-        consolidation_string +=
-            format!("{}\n{}{}\n", delimiter, template_string, delimiter).as_str();
-        debug!("Written {} to consolidation string", file_path);
+            template_file
+                .read_to_string(&mut template_string)
+                .expect("Error reading template file");
+            consolidation_string += format!("\n# {}\n", template).as_str();
+            consolidation_string +=
+                format!("{}\n{}{}\n", delimiter, template_string, delimiter).as_str();
+            debug!("Written {} to consolidation string", file_path);
+        }
     }
 
     consolidation_file
@@ -119,13 +119,13 @@ pub fn list_templates(app_options: &mut Options) {
 }
 
 // Generate a B-tree map of available requested templates
-fn parse_templates(app_options: &mut Options) -> Result<BTreeMap<String, String>, io::Error> {
+fn parse_templates(app_options: &mut Options) -> Result<BTreeMap<String, Vec<String>>, io::Error> {
     debug!("Parsing template options");
 
     let absolute_repo_path: String;
 
-    let mut available_templates = BTreeMap::<String, String>::new();
-    let mut template_paths = BTreeMap::<String, String>::new();
+    let mut available_templates = BTreeMap::<String, Vec<String>>::new();
+    let mut template_paths = BTreeMap::<String, Vec<String>>::new();
 
     let template_list = app_options.templates.clone();
 
@@ -141,8 +141,8 @@ fn parse_templates(app_options: &mut Options) -> Result<BTreeMap<String, String>
 
     for template in template_list {
         // If template exists
-        if let Some(template_path) = template_paths.get(&template) {
-            *available_templates.entry(template).or_default() = template_path.to_string();
+        if let Some(t_paths) = template_paths.get(&template) {
+            *available_templates.entry(template).or_default() = t_paths.to_vec();
         }
     }
 
@@ -236,7 +236,7 @@ pub fn update_gitignore_repo(app_options: &Options) -> Result<(), git2::Error> {
 
 fn update_template_paths(
     dir: &Path,
-    template_paths: &mut BTreeMap<String, String>,
+    template_paths: &mut BTreeMap<String, Vec<String>>,
 ) -> io::Result<()> {
     debug!(
         "Updating template file paths, dir: {}",
@@ -249,18 +249,18 @@ fn update_template_paths(
 
         let entry = entry?;
 
-        let entry_path = entry.path();
-        entry_path_string = String::from(entry_path.into_os_string().to_str().unwrap());
-
         if ignore_file(&entry) {
             continue;
         }
+
+        let entry_path = entry.path();
+        entry_path_string = String::from(entry_path.into_os_string().to_str().unwrap());
 
         if entry.path().is_dir() {
             update_template_paths(&entry.path(), template_paths)?
         }
 
-        // TODO: review filetype removal
+        // TODO: refine filetype removal
         let t_filename = entry.file_name();
         #[allow(clippy::single_char_pattern)]
         let t_filename_split = t_filename
@@ -268,9 +268,11 @@ fn update_template_paths(
             .unwrap()
             .split(".")
             .collect::<Vec<&str>>();
-        *template_paths
+        let template = template_paths
             .entry(t_filename_split[0].to_string())
-            .or_default() = entry_path_string;
+            .or_default();
+
+        template.push(entry_path_string);
     }
 
     debug!(

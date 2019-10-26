@@ -70,7 +70,7 @@ pub struct Options {
     pub templates: Vec<String>,
 
     // B-Tree hash map of all available template paths
-    pub template_paths: BTreeMap<String, String>,
+    pub template_paths: BTreeMap<String, Vec<String>>,
 }
 
 impl Config {
@@ -115,13 +115,13 @@ impl Config {
 
         let config: Config;
 
+        let read_bytes: usize;
+
         let mut config_string = String::new();
 
         let mut default_config_file: PathBuf;
 
         let mut config_file: File;
-
-        let read_bytes: usize;
 
         default_config_file =
             dirs::config_dir().expect("Error obtaining system's config directory");
@@ -156,23 +156,17 @@ impl Config {
 
         read_bytes = config_file
             .read_to_string(&mut config_string)
-            .unwrap_or_else(|err| match err.kind() {
-                ErrorKind::NotFound => {
+            .unwrap_or_else(|err| {
+                if err.kind() == ErrorKind::NotFound {
                     error!("No config file: {}", err);
-                    0
+                } else {
+                    error!("Error reading config file err: {}", err);
                 }
-                ErrorKind::Other => {
-                    error!("Other config file err: {}", err);
-                    0
-                }
-                _ => {
-                    debug!("Read config file: No error");
-                    0
-                }
-            });
 
+                0
+            });
         if read_bytes > 0 {
-            // Temporary value dropped
+            // If config file isn't empty
             config = toml::from_str(config_string.trim()).unwrap();
             debug!("Done parsing config file");
 
@@ -190,8 +184,6 @@ impl Config {
             )
             .unwrap();
         debug!("Updated config file with config values");
-
-        debug!("Done parsing config file");
 
         None
     }
@@ -286,7 +278,7 @@ impl Options {
                 }
                 None => ["".to_string()].to_vec(),
             },
-            template_paths: BTreeMap::<String, String>::new(),
+            template_paths: BTreeMap::<String, Vec<String>>::new(),
         };
 
         debug!("Done parsing command arguments & config file");
