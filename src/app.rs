@@ -254,10 +254,13 @@ fn update_template_paths(
         }
 
         let entry_path = entry.path();
-        entry_path_string = String::from(entry_path.into_os_string().to_str().unwrap());
+        entry_path_string = String::from(entry_path.clone().into_os_string().to_str().unwrap());
 
-        if entry.path().is_dir() {
-            update_template_paths(&entry.path(), template_paths)?
+        if entry_path.is_dir() {
+            update_template_paths(&entry_path, template_paths)?;
+            debug!("Dir: {}", &entry_path_string);
+
+            continue;
         }
 
         // TODO: refine filetype removal
