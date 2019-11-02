@@ -191,7 +191,7 @@ impl Config {
 
 impl Options {
     // Parse command arguments
-    pub fn parse() -> Option<(Options)> {
+    pub fn parse() -> Option<Options> {
         debug!("Parsing command arguments & config file");
 
         let mut config_file_path = String::new();
