@@ -1,6 +1,16 @@
 <a name=""></a>
-##  (2019-11-02)
+##  (2019-11-14)
 
+
+#### Bug Fixes
+
+* **app.rs:**
+  *  Remove directories from template list ([1464c853](1464c853))
+  *  Fix repository update function ([afd88a19](afd88a19))
+  *  Fix consolidation file overwrite ([a1869487](a1869487))
+* **config.rs:**
+  *  Remove lifetimes & change to String ([c1dfd9d9](c1dfd9d9))
+  *  Fix WIP linter warnings ([19f7d843](19f7d843))
 
 #### Features
 
@@ -19,16 +29,6 @@
 * **src/*.rs:**
   *  Add support for user & path templates ([dab1c82f](dab1c82f))
   *  Populate initial files with code ([0d1fbc57](0d1fbc57))
-
-#### Bug Fixes
-
-* **app.rs:**
-  *  Remove directories from template list ([1464c853](1464c853))
-  *  Fix repository update function ([afd88a19](afd88a19))
-  *  Fix consolidation file overwrite ([a1869487](a1869487))
-* **config.rs:**
-  *  Remove lifetimes & change to String ([c1dfd9d9](c1dfd9d9))
-  *  Fix WIP linter warnings ([19f7d843](19f7d843))
 
 #### Performance
 
