@@ -7,6 +7,7 @@ use crate::config::Options;
 use git2::build::CheckoutBuilder;
 use git2::{Object, Repository};
 use std::collections::btree_map::BTreeMap;
+// use std::collections::hash_map::HashMap;
 use std::fs::{self, DirBuilder, DirEntry, File, OpenOptions};
 use std::io;
 use std::io::prelude::*;
@@ -95,12 +96,13 @@ pub fn list_templates(app_options: &mut Options) {
         &mut app_options.template_paths,
     )
     .expect("Error updating template file paths");
+    debug!("Template hash: {:?}", app_options.template_paths);
 
     /* app_options.template_paths = match sort_template_paths(&app_options.template_paths) {
      *     Some(sort) => sort,
      *     None => panic!("Template file paths B-tree map not sorted"),
-     * }; */
-    debug!("Template hash: {:?}", app_options.template_paths);
+     * };
+     * debug!("Sorted template hash: {:?}", app_options.template_paths); */
 
     key_vector = app_options.template_paths.keys().cloned().collect();
     key_vector.sort_by(|a, b| a.to_lowercase().cmp(&b.to_lowercase()));
@@ -138,6 +140,13 @@ fn parse_templates(app_options: &mut Options) -> Result<BTreeMap<String, Vec<Str
         .expect("Error updating template file paths");
     debug!("Template path B-tree map updated");
     debug!("Template hash: {:?}", template_paths);
+    debug!("Template hash: {:?}", template_paths);
+
+    /* template_paths = match sort_template_paths(&template_paths) {
+     *     Some(sort) => sort,
+     *     None => panic!("Template file paths B-tree map not sorted"),
+     * };
+     * debug!("Sorted template hash: {:?}", template_paths); */
 
     for template in template_list {
         // If template exists
@@ -205,16 +214,16 @@ pub fn update_gitignore_repo(app_options: &Options) -> Result<(), git2::Error> {
     Ok(())
 }
 
-// Forgot binary trees are sorted maps
-/* fn sort_template_paths(
- *     unsorted_map: &BTreeMap<String, String>,
- * ) -> Option<BTreeMap<String, String>> {
+/* // Forgot binary trees are sorted maps
+ * fn sort_template_paths(
+ *     unsorted_map: &HashMap<String, Vec<String>>,
+ * ) -> Option<HashMap<String, Vec<String>>> {
  *     debug!("Sorting template paths hash");
  *     // debug!("Unsorted map: {:?}", unsorted_map);
  *
  *     let mut key_vector: Vec<String>;
  *
- *     let mut sorted_map = BTreeMap::<String, String>::new();
+ *     let mut sorted_map = HashMap::<String, Vec<String>>::new();
  *
  *     key_vector = unsorted_map.keys().cloned().collect();
  *     key_vector.sort_by(|a, b| a.to_lowercase().cmp(&b.to_lowercase()));
@@ -223,10 +232,9 @@ pub fn update_gitignore_repo(app_options: &Options) -> Result<(), git2::Error> {
  *     for key in key_vector {
  *         let path = unsorted_map
  *             .get(&key)
- *             .expect("Error sorting template path B-tree map")
- *             .to_string();
- *         debug!("{}", path);
- *         *sorted_map.entry(key).or_default() = path;
+ *             .expect("Error sorting template path B-tree map");
+ *         debug!("{:?}", path);
+ *         *sorted_map.entry(key).or_default() = path.clone();
  *     }
  *     debug!("Done sorting template paths hash");
  *     // debug!("Sorted map: {:?}", sorted_map);

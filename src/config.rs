@@ -9,6 +9,7 @@ extern crate toml;
 // use std::ffi::OsString;
 use clap::{App, Arg, ArgMatches};
 use serde::{Deserialize, Serialize};
+// use std::collections::hash_map::HashMap;
 use std::collections::btree_map::BTreeMap;
 use std::fs::{DirBuilder, File, OpenOptions};
 use std::io::prelude::*;
