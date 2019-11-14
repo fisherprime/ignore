@@ -14,19 +14,23 @@ use app::{generate_gitignore, list_templates, update_gitignore_repo};
 use config::Options;
 
 fn main() {
-    if let Some(mut app_options) = Options::parse() {
-        if app_options.update_repo {
-            update_gitignore_repo(&app_options).expect("Error updating gitignore repo")
-        }
-
-        if app_options.list_templates {
-            list_templates(&mut app_options)
-        }
-
-        if app_options.generate_gitignore {
-            generate_gitignore(&mut app_options).expect("Error generating .gitignore file");
-        }
-
-        app_options.save();
+    if let Some(app_options) = Options::parse() {
+        run(app_options);
     }
+}
+
+fn run(mut app_options: Options) {
+    if app_options.update_repo {
+        update_gitignore_repo(&app_options).expect("Error updating gitignore repo")
+    }
+
+    if app_options.list_templates {
+        list_templates(&mut app_options)
+    }
+
+    if app_options.generate_gitignore {
+        generate_gitignore(&mut app_options).expect("Error generating .gitignore file");
+    }
+
+    app_options.save();
 }
