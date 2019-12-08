@@ -1,0 +1,30 @@
+image: rustlang/rust:nightly
+
+stages:
+  - test
+  - build
+
+cache:
+  key: test-cache
+  paths:
+    - .cargo/
+    - target/
+
+test:
+  stage: test
+  only:
+    - develop
+  script:
+    - cargo test --verbose
+  after-script:
+    - printf "Test complete\n"
+  allow_failure: false
+
+build:
+  stage: build
+  only:
+    - master
+  script:
+    - cargo build --verbose
+  after-script:
+    - printf "Build complete\n"
