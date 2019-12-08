@@ -214,8 +214,8 @@ pub fn update_gitignore_repo(app_options: &Options) -> Result<(), git2::Error> {
     Ok(())
 }
 
-/* // Forgot binary trees are sorted maps
- * fn sort_template_paths(
+// Using a BTreeMap is faster
+/* fn sort_template_paths(
  *     unsorted_map: &HashMap<String, Vec<String>>,
  * ) -> Option<HashMap<String, Vec<String>>> {
  *     debug!("Sorting template paths hash");
