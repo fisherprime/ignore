@@ -16,7 +16,7 @@ test:
     - develop
   script:
     - cargo test --verbose
-  after-script:
+  after_script:
     - printf "Test complete\n"
   allow_failure: false
 
@@ -26,5 +26,5 @@ build:
     - master
   script:
     - cargo build --verbose
-  after-script:
+  after_script:
     - printf "Build complete\n"
