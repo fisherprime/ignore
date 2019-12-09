@@ -19,7 +19,7 @@ use std::time::{Duration, SystemTime};
 
 const REPO_UPDATE_LIMIT: u64 = 60 * 60 * 24 * 7;
 
-#[derive(Deserialize, Serialize, Debug, Clone)]
+#[derive(Deserialize, Serialize, PartialEq, Debug, Clone)]
 pub struct Config {
     // Binary specific configuration options
     pub core: CoreConfig,
@@ -29,13 +29,13 @@ pub struct Config {
     pub repo: RepoConfig,
 }
 
-#[derive(Deserialize, Serialize, Debug, Clone)]
+#[derive(Deserialize, Serialize, PartialEq, Debug, Clone)]
 pub struct CoreConfig {
     // Timestamp of the last time the binary was run
     pub last_run: SystemTime,
 }
 
-#[derive(Deserialize, Serialize, Debug, Clone)]
+#[derive(Deserialize, Serialize, PartialEq, Debug, Clone)]
 pub struct RepoConfig {
     // Directory containing gitignore repositories
     pub repo_parent_dir: String,
@@ -368,12 +368,74 @@ fn setup_logger(matches: &ArgMatches) -> Result<(), fern::InitError> {
     Ok(())
 }
 
-/* #[cfg(test)]
- * mod tests {
- *     use super::*;
- *
- *     #[test]
- *     fn setup_logger_test() {
- *         assert!(asdasda)
- *     }
- * } */
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /**
+     * Assert correctness of the default runtime options, includes the config
+     * TODO: add necessary fields
+     */
+    /*     #[test]
+     *     fn option_parse_test() {
+     *         let options = match Options::parse() {
+     *             Some(val) => val,
+     *             None => None,
+     *         };
+     *
+     *         assert!(options);
+     *     } */
+
+    /**
+     * Assert correctness of the default config options
+     */
+    #[test]
+    fn config_create_test() {
+        let config = Config::new();
+
+        let now = SystemTime::now();
+
+        let mut parent_dir = dirs::cache_dir().unwrap();
+        parent_dir.push("ignore-ng/repos");
+
+        let hardcode_config = Config {
+            core: CoreConfig {
+                last_run: now - Duration::new(0, 500),
+            },
+            repo: RepoConfig {
+                repo_url: "https://github.com/github/gitignore".to_string(),
+                repo_parent_dir: parent_dir.into_os_string().into_string().unwrap(),
+                repo_path: "github/gitignore".to_string(),
+            },
+        };
+
+        assert!(hardcode_config.repo.eq(&config.repo));
+    }
+
+    /**
+     * Assert correctness of parsed config file.
+     * Should test run only if file exists?
+     */
+    #[test]
+    fn config_file_parse_test() {
+        let mut config = Config::new();
+
+        let mut config_path = dirs::config_dir().unwrap();
+        config_path.push("ignore-ng/config.toml");
+
+        // Parse probably empty config and populate it with current config
+        config = match config.parse(&config_path.clone().into_os_string().into_string().unwrap()) {
+            Some(cfg) => cfg,
+            None => config.clone(),
+        };
+
+        // Parse current config file & assert is same as prior parse
+        if let Some(parsed_config) =
+            config.parse(&config_path.into_os_string().into_string().unwrap())
+        {
+            assert!(parsed_config.eq(&config));
+        } else {
+            panic!("Could not parse config");
+        }
+    }
+}
