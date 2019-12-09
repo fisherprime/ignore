@@ -1,5 +1,5 @@
 <a name=""></a>
-##  (2019-12-08)
+##  (2019-12-09)
 
 
 #### Performance
@@ -35,14 +35,18 @@
   *  Add serde & toml crates ([cbc3f56b](cbc3f56b))
   *  Add git2 crate & initial code ([380d815c](380d815c))
   *  Add cargo files & define dependencies ([abac05bf](abac05bf))
-* **.gitlab-ci.yml:**  Add Gitlab CI config ([4db6d864](4db6d864))
+* **.gitlab-ci.yml:**
+  *  Add CARGO_HOME variable ([788f4fb3](788f4fb3))
+  *  Add Gitlab CI config ([4db6d864](4db6d864))
 * **CHANGELOG.md:**  Add CHANGELOG ([38f844c6](38f844c6))
 * **LICENSE.md:**  Add licence file ([1d44689c](1d44689c))
 * **README.md:**  Add README ([6363f29c](6363f29c))
 * **app.rs:**
   *  Enable the config save function ([045289c7](045289c7))
   *  Add WIP ([25cb5f41](25cb5f41))
-* **config.rs:**  Add the Options struct ([3acbead2](3acbead2))
+* **config.rs:**
+  *  Add config struct tests ([a3402bc6](a3402bc6))
+  *  Add the Options struct ([3acbead2](3acbead2))
 * **src/*.rs:**
   *  Add support for user & path templates ([dab1c82f](dab1c82f))
   *  Populate initial files with code ([0d1fbc57](0d1fbc57))
