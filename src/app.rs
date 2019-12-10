@@ -34,10 +34,11 @@ pub fn run() -> Result<(), Box<dyn Error>> {
     }
 
     app_options.save();
+
     Ok(())
 }
 
-pub fn generate_gitignore(app_options: &mut Options) -> Result<(), io::Error> {
+fn generate_gitignore(app_options: &mut Options) -> Result<(), io::Error> {
     info!("Generating gitignore");
 
     let delimiter = "# ----";
@@ -121,12 +122,12 @@ pub fn generate_gitignore(app_options: &mut Options) -> Result<(), io::Error> {
     // .expect("Error truncating consolidation file");
     consolidation_file.write_all(consolidation_string.as_bytes())?;
     // .expect("Error writing to gitignore consolidation file");
-    info!("Done generating gitignore: {}", app_options.output_file);
+    info!("Generated gitignore: {}", app_options.output_file);
 
     Ok(())
 }
 
-pub fn list_templates(app_options: &mut Options) -> Result<(), Box<dyn Error>> {
+fn list_templates(app_options: &mut Options) -> Result<(), Box<dyn Error>> {
     info!("Listing available templates");
 
     let list_width = 6;
@@ -156,7 +157,7 @@ pub fn list_templates(app_options: &mut Options) -> Result<(), Box<dyn Error>> {
     }
     println!("{}", list_string);
 
-    info!("Done listing available templates");
+    debug!("Done listing available templates");
 
     Ok(())
 }
@@ -190,8 +191,8 @@ fn parse_templates(app_options: &mut Options) -> Result<TemplatePaths, Box<dyn E
 }
 
 // REF: https://github.com/nabijaczleweli/cargo-update/blob/master/src/ops/mod.rs
-pub fn update_gitignore_repo(app_options: &Options) -> Result<(), git2::Error> {
-    info!("Updating gitignore repo");
+fn update_gitignore_repo(app_options: &Options) -> Result<(), git2::Error> {
+    info!("Updating gitignore repo(s)");
 
     let mut checkout = CheckoutBuilder::new();
 
