@@ -15,6 +15,7 @@ use std::io;
 use std::io::prelude::*;
 use std::path::Path;
 
+// Binary tree type alias for simplicity
 type TemplatePaths = BTreeMap<String, Vec<String>>;
 
 pub fn run() -> Result<(), Box<dyn Error>> {
@@ -67,25 +68,53 @@ pub fn generate_gitignore(app_options: &mut Options) -> Result<(), io::Error> {
     for (template, file_paths) in available_templates {
         let file_paths = &file_paths;
 
+        let mut template_string = format!("\n# {}\n{}\n", template, delimiter);
+
+        let mut template_vec = Vec::<String>::new();
+
         for file_path in file_paths {
             debug!("Parsing: {}", file_path);
 
-            let mut template_string = String::new();
+            match File::open(file_path) {
+                Ok(mut template_file) => {
+                    let mut temp_string = String::new();
 
-            let mut template_file = File::open(file_path).unwrap_or_else(|err| {
-                // Prefer to break out of the loop
-                panic!("Error opening gitignore template file: {:?}", err);
-                // error!("Error opening gitignore template file: {:?}", err);
-            });
+                    template_file
+                        .read_to_string(&mut temp_string)
+                        .expect("Error reading template file");
 
-            template_file
-                .read_to_string(&mut template_string)
-                .expect("Error reading template file");
-            consolidation_string += format!("\n# {}\n", template).as_str();
-            consolidation_string +=
-                format!("{}\n{}{}\n", delimiter, template_string, delimiter).as_str();
-            debug!("Written {} to consolidation string", file_path);
+                    template_vec.push(temp_string.to_string());
+
+                    debug!(
+                        "Appended {} content to {} template vector",
+                        file_path, template
+                    );
+                }
+                Err(err) => {
+                    error!("Error opening .gitignore template file: {}", err);
+                    continue;
+                }
+            };
         }
+
+        if template_vec.is_empty() {
+            continue;
+        }
+
+        template_vec.sort();
+        template_vec.dedup();
+
+        if template_vec.len().gt(&1) {
+            for temp_string in template_vec {
+                // TODO: replace with deduplication logic
+                template_string += &temp_string;
+            }
+        } else {
+            template_string += &template_vec.pop().unwrap();
+        }
+
+        template_string += format!("{}\n", delimiter).as_str();
+        consolidation_string += template_string.as_str();
     }
 
     consolidation_file.set_len(0)?;
@@ -247,6 +276,10 @@ fn generate_template_paths(app_options: &mut Options) -> Result<TemplatePaths, B
     let mut template_paths = TemplatePaths::new();
 
     for repo_det in app_options.config.repo.repo_dets.iter() {
+        if repo_det.ignore {
+            continue;
+        }
+
         let absolute_repo_path = format!(
             "{}/{}",
             app_options.config.repo.repo_parent_dir, repo_det.repo_path
