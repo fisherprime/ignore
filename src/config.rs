@@ -6,11 +6,11 @@ extern crate fern;
 extern crate serde;
 extern crate toml;
 
+// use std::collections::btree_map::BTreeMap;
+// use std::collections::hash_map::HashMap;
 // use std::ffi::OsString;
 use clap::{App, Arg, ArgMatches};
 use serde::{Deserialize, Serialize};
-// use std::collections::hash_map::HashMap;
-use std::collections::btree_map::BTreeMap;
 use std::error::Error;
 use std::fs::{DirBuilder, File, OpenOptions};
 use std::io::prelude::*;
@@ -26,7 +26,6 @@ pub struct Config {
     pub core: CoreConfig,
 
     // Repository specific configuration options
-    // TODO: look into providing for multiple template sources
     pub repo: RepoConfig,
 }
 
@@ -41,6 +40,12 @@ pub struct RepoConfig {
     // Directory containing gitignore repositories
     pub repo_parent_dir: String,
 
+    // Details for multiple/single template repository
+    pub repo_dets: Vec<RepoDetails>,
+}
+
+#[derive(Deserialize, Serialize, PartialEq, Debug, Clone)]
+pub struct RepoDetails {
     // Relative path (to repo_parent_dir) of gitignore template repo to use
     pub repo_path: String,
 
@@ -70,9 +75,8 @@ pub struct Options {
 
     // List of templates user desires to use in gitignore generation
     pub templates: Vec<String>,
-
     // B-Tree hash map of all available template paths
-    pub template_paths: BTreeMap<String, Vec<String>>,
+    // pub template_paths: BTreeMap<String, Vec<String>>,
 }
 
 impl Config {
@@ -103,16 +107,17 @@ impl Config {
                 last_run: now - Duration::new(0, 500),
             },
             repo: RepoConfig {
-                repo_url: default_gitignore_repo,
                 repo_parent_dir: r_parent_dir.into_os_string().into_string().unwrap(),
-                repo_path: r_path,
+                repo_dets: vec![RepoDetails {
+                    repo_url: default_gitignore_repo,
+                    repo_path: r_path,
+                }],
             },
         }
     }
 
     // Parse config file contents
     // Passing a reference to avoid taking ownership
-    fn parse(&self, config_file_path: &str) -> Option<Config> {
     fn parse(&self, config_file_path: &str) -> Result<Config, Box<dyn Error>> {
         debug!("Parsing config file");
 
@@ -173,16 +178,17 @@ impl Config {
             config = toml::from_str(config_string.trim())?;
             debug!("Done parsing config file");
 
-            return Some(config);
+            return Ok(config);
         }
 
         info!("Config file is empty, using default config values");
+        config = self.clone();
 
         // Write default config to file
         config_file.write_all(toml::to_string(&self)?.as_bytes())?;
         debug!("Updated config file with config values");
 
-        None
+        Ok(config)
     }
 }
 
@@ -278,7 +284,7 @@ impl Options {
                 }
                 None => ["".to_string()].to_vec(),
             },
-            template_paths: BTreeMap::<String, Vec<String>>::new(),
+            // template_paths: BTreeMap::<String, Vec<String>>::new(),
         };
 
         debug!("Done parsing command arguments & config file");
@@ -341,7 +347,7 @@ fn setup_logger(matches: &ArgMatches) -> Result<(), fern::InitError> {
             .format(|out, message, record| {
                 out.finish(format_args!(
                     "{}[{}][{}] {}",
-                    chrono::Local::now().format("[%Y-%m-%d][%H:%M:%S]"),
+                    chrono::Local::now().format("[%Y-%m-%dT%H:%M:%S%z]"),
                     record.target(),
                     record.level(),
                     message
@@ -402,9 +408,11 @@ mod tests {
                 last_run: now - Duration::new(0, 500),
             },
             repo: RepoConfig {
-                repo_url: "https://github.com/github/gitignore".to_string(),
                 repo_parent_dir: parent_dir.into_os_string().into_string().unwrap(),
-                repo_path: "github/gitignore".to_string(),
+                repo_dets: vec![RepoDetails {
+                    repo_url: "https://github.com/github/gitignore".to_string(),
+                    repo_path: "github/gitignore".to_string(),
+                }],
             },
         };
 

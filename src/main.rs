@@ -14,7 +14,12 @@ use app::run;
 use config::Options;
 
 fn main() {
-    if let Some(app_options) = Options::parse() {
-        run(app_options);
+    match Options::parse() {
+        Ok(app_options) => {
+            if let Err(err) = run(app_options) {
+                panic!("Application error: {}", err)
+            }
+        }
+        Err(err) => panic!("Application error: {}", err),
     }
 }

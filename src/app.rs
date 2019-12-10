@@ -4,15 +4,18 @@ extern crate git2;
 
 use crate::config::Options;
 
-use git2::build::CheckoutBuilder;
-use git2::{Object, Repository};
-use std::collections::btree_map::BTreeMap;
+// use git2::{Object, Repository};
 // use std::collections::hash_map::HashMap;
+use git2::build::CheckoutBuilder;
+use git2::Repository;
+use std::collections::btree_map::BTreeMap;
 use std::error::Error;
 use std::fs::{self, DirBuilder, DirEntry, File, OpenOptions};
 use std::io;
 use std::io::prelude::*;
 use std::path::Path;
+
+type TemplatePaths = BTreeMap<String, Vec<String>>;
 
 pub fn run(mut app_options: Options) -> Result<(), Box<dyn Error>> {
     if app_options.update_repo {
@@ -35,7 +38,7 @@ pub fn generate_gitignore(app_options: &mut Options) -> Result<(), io::Error> {
     info!("Generating gitignore");
 
     let delimiter = "# ----";
-    let available_templates: BTreeMap<String, Vec<String>>;
+    let available_templates: TemplatePaths;
 
     let mut consolidation_file: File;
 
@@ -97,22 +100,11 @@ pub fn list_templates(app_options: &mut Options) -> Result<(), Box<dyn Error>> {
 
     let list_width = 6;
 
-    let absolute_repo_path: String;
     let mut list_string = String::new();
 
     let mut key_vector: Vec<String>;
 
-    absolute_repo_path = format!(
-        "{}/{}",
-        app_options.config.repo.repo_parent_dir, app_options.config.repo.repo_path
-    );
-
-    update_template_paths(
-        &Path::new(&absolute_repo_path),
-        &mut app_options.template_paths,
-    )
-    .expect("Error updating template file paths");
-    debug!("Template hash: {:?}", app_options.template_paths);
+    let template_paths = generate_template_paths(app_options)?;
 
     /* app_options.template_paths = match sort_template_paths(&app_options.template_paths) {
      *     Some(sort) => sort,
@@ -120,7 +112,7 @@ pub fn list_templates(app_options: &mut Options) -> Result<(), Box<dyn Error>> {
      * };
      * debug!("Sorted template hash: {:?}", app_options.template_paths); */
 
-    key_vector = app_options.template_paths.keys().cloned().collect();
+    key_vector = template_paths.keys().cloned().collect();
     key_vector.sort_by(|a, b| a.to_lowercase().cmp(&b.to_lowercase()));
 
     for (index, key) in key_vector.iter().enumerate() {
@@ -142,23 +134,11 @@ pub fn list_templates(app_options: &mut Options) -> Result<(), Box<dyn Error>> {
 fn parse_templates(app_options: &mut Options) -> Result<TemplatePaths, Box<dyn Error>> {
     debug!("Parsing template options");
 
-    let absolute_repo_path: String;
-
-    let mut available_templates = BTreeMap::<String, Vec<String>>::new();
-    let mut template_paths = BTreeMap::<String, Vec<String>>::new();
+    let mut available_templates = TemplatePaths::new();
 
     let template_list = app_options.templates.clone();
 
-    absolute_repo_path = format!(
-        "{}/{}",
-        app_options.config.repo.repo_parent_dir, app_options.config.repo.repo_path
-    );
-
-    update_template_paths(&Path::new(&absolute_repo_path), &mut template_paths)
-        .expect("Error updating template file paths");
-    debug!("Template path B-tree map updated");
-    debug!("Template hash: {:?}", template_paths);
-    debug!("Template hash: {:?}", template_paths);
+    let template_paths = generate_template_paths(app_options)?;
 
     /* template_paths = match sort_template_paths(&template_paths) {
      *     Some(sort) => sort,
@@ -182,38 +162,35 @@ fn parse_templates(app_options: &mut Options) -> Result<TemplatePaths, Box<dyn E
 pub fn update_gitignore_repo(app_options: &Options) -> Result<(), git2::Error> {
     info!("Updating gitignore repo");
 
-    let absolute_repo_path: String;
-
-    let repo: Repository;
-
-    let fetch_head: Object;
-
     let mut checkout = CheckoutBuilder::new();
 
-    absolute_repo_path = format!(
-        "{}/{}",
-        app_options.config.repo.repo_parent_dir, app_options.config.repo.repo_path
-    );
+    for repo_det in app_options.config.repo.repo_dets.iter() {
+        /* let repo: Repository;
+         * let fetch_head: Object; */
 
-    repo = Repository::discover(&absolute_repo_path).unwrap_or_else(|_| {
-        info!("Repository not cached locally, cloning");
-
-        let err_string = &format!(
-            "Failed to clone: {} into: {:?}",
-            app_options.config.repo.repo_url, app_options.config.repo.repo_path
+        let absolute_repo_path = format!(
+            "{}/{}",
+            app_options.config.repo.repo_parent_dir, repo_det.repo_path
         );
 
-        DirBuilder::new()
-            .recursive(true)
-            .create(&app_options.config.repo.repo_parent_dir)
-            .expect("Error creating repository cache directory hierarchy");
+        let repo = Repository::discover(&absolute_repo_path).unwrap_or_else(|_| {
+            info!(
+                "Repository not cached locally, cloning: {}",
+                repo_det.repo_path
+            );
 
-        Repository::clone_recurse(&app_options.config.repo.repo_url, &absolute_repo_path)
-            .expect(err_string)
-    });
+            let err_string = &format!(
+                "Failed to clone: {} into: {:?}",
+                repo_det.repo_url, repo_det.repo_path
+            );
 
-    debug!("Repository is available");
+            DirBuilder::new()
+                .recursive(true)
+                .create(&app_options.config.repo.repo_parent_dir)
+                .expect("Error creating repository cache directory hierarchy");
 
+            Repository::clone_recurse(&repo_det.repo_url, &absolute_repo_path).expect(err_string)
+        });
 
         debug!("Repository is available: {}", repo_det.repo_path);
 
@@ -264,10 +241,27 @@ pub fn update_gitignore_repo(app_options: &Options) -> Result<(), git2::Error> {
  *     Some(sorted_map)
  * } */
 
-fn update_template_paths(
-    dir: &Path,
-    template_paths: &mut BTreeMap<String, Vec<String>>,
-) -> io::Result<()> {
+fn generate_template_paths(app_options: &mut Options) -> Result<TemplatePaths, Box<dyn Error>> {
+    let mut template_paths = TemplatePaths::new();
+
+    for repo_det in app_options.config.repo.repo_dets.iter() {
+        let absolute_repo_path = format!(
+            "{}/{}",
+            app_options.config.repo.repo_parent_dir, repo_det.repo_path
+        );
+
+        if !Path::new(&absolute_repo_path).is_dir() {
+            update_gitignore_repo(&app_options)?;
+        };
+
+        update_template_paths(&Path::new(&absolute_repo_path), &mut template_paths)?;
+        debug!("Template hash: {:?}", template_paths);
+    }
+
+    Ok(template_paths)
+}
+
+fn update_template_paths(dir: &Path, template_paths: &mut TemplatePaths) -> io::Result<()> {
     debug!(
         "Updating template file paths, dir: {}",
         dir.as_os_str().to_str().unwrap()
