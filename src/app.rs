@@ -13,6 +13,23 @@ use std::io;
 use std::io::prelude::*;
 use std::path::Path;
 
+pub fn run(mut app_options: Options) -> Result<(), Box<dyn Error>> {
+    if app_options.update_repo {
+        update_gitignore_repo(&app_options)?;
+    }
+
+    if app_options.list_templates {
+        list_templates(&mut app_options)?
+    }
+
+    if app_options.generate_gitignore {
+        generate_gitignore(&mut app_options)?;
+    }
+
+    app_options.save();
+    Ok(())
+}
+
 pub fn generate_gitignore(app_options: &mut Options) -> Result<(), io::Error> {
     info!("Generating gitignore");
 
