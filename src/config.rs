@@ -9,6 +9,7 @@ extern crate toml;
 // use std::collections::btree_map::BTreeMap;
 // use std::collections::hash_map::HashMap;
 // use std::ffi::OsString;
+use clap::{App, AppSettings, Arg, ArgMatches};
 use serde::{Deserialize, Serialize};
 use std::error::Error;
 use std::fs::{DirBuilder, File, OpenOptions};
@@ -220,6 +221,7 @@ impl Options {
 
         // env!("CARGO_PKG_VERSION")
         matches = App::new("ignore-ng")
+            .setting(AppSettings::ArgRequiredElseHelp)
             .version(crate_version!())
             .about("Generated .gitignore files")
             .author("fisherprime")
