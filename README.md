@@ -11,4 +11,3 @@ Todo:
     2. Output to stdout option, make it the default?
     3. Deduplocate template file entries for the same technology,
        language, ...
-    4. Provide an ignore option in repository definitions.
