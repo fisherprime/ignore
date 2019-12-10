@@ -9,7 +9,6 @@ extern crate toml;
 // use std::collections::btree_map::BTreeMap;
 // use std::collections::hash_map::HashMap;
 // use std::ffi::OsString;
-use clap::{App, Arg, ArgMatches};
 use serde::{Deserialize, Serialize};
 use std::error::Error;
 use std::fs::{DirBuilder, File, OpenOptions};
@@ -220,19 +219,55 @@ impl Options {
         let now = SystemTime::now();
 
         // env!("CARGO_PKG_VERSION")
-        // Doesn't live long enough
         matches = App::new("ignore-ng")
-        .version(crate_version!())
-        .about("Generated .gitignore files")
-        .author("fisherprime")
-        .arg(Arg::with_name("config").short("c").long("config").value_name("FILE").takes_value(true).help("Specify alternative config file to use."))
-        .arg(Arg::with_name("list").short("l").long("list").help("List all available languages, tools & projects."))
-        .arg(Arg::with_name("output").short("o").long("output").value_name("FILE").takes_value(true).help("Specify output filename, defaults to: gitignore-ng."))
-        .arg(Arg::with_name("template").short("t").long("templates").value_name("TEMPLATE").takes_value(true).multiple(true).help("Case sensitive specification of language(s), tool(s) and/or project template(s) to use in generating .gitignore."))
-        .arg(Arg::with_name("update").short("u").long("update").help("Manually update the gitignore template repo"))
-        .arg(Arg::with_name("verbosity").short("v").long("verbose").multiple(true).help("Set the level of verbosity for logs: -v, -vv."))
-        .get_matches();
-        debug!("Done parsing command flags");
+            .version(crate_version!())
+            .about("Generated .gitignore files")
+            .author("fisherprime")
+            .arg(
+                Arg::with_name("config")
+                .help("Specify alternative config file to use.")
+                .short("c")
+                .long("config")
+                .value_name("FILE")
+                .takes_value(true)
+            )
+            .arg(
+                Arg::with_name("list")
+                .help("List all available languages, tools & projects.")
+                .short("l")
+                .long("list")
+            )
+            .arg(
+                Arg::with_name("output")
+                .help("Specify output filename, defaults to: gitignore-ng.")
+                .short("o")
+                .long("output")
+                .value_name("FILE")
+                .takes_value(true)
+            )
+            .arg(
+                Arg::with_name("template")
+                .help("Case sensitive specification of language(s), tool(s) and/or project template(s) to use in generating .gitignore.")
+                .short("t")
+                .long("templates")
+                .value_name("TEMPLATE")
+                .takes_value(true)
+                .multiple(true)
+            )
+            .arg(
+                Arg::with_name("update")
+                .help("Manually update the gitignore template repo(s)")
+                .short("u").long("update")
+            )
+            .arg(
+                Arg::with_name("verbosity")
+                .help("Set the level of verbosity for logs: -v, -vv.")
+                .short("v")
+                .long("verbose")
+                .multiple(true)
+            )
+            .get_matches();
+        debug!("Parsed command flags");
 
         setup_logger(&matches)?;
 
@@ -297,9 +332,10 @@ impl Options {
             },
             // template_paths: BTreeMap::<String, Vec<String>>::new(),
         };
-
-        debug!("Done parsing command arguments & config file");
-        debug!("Options: {:?}", app_options);
+        debug!(
+            "Parsed command arguments & config file, options: {:?}",
+            app_options
+        );
 
         Ok(app_options)
     }
