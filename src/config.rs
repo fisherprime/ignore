@@ -46,6 +46,9 @@ pub struct RepoConfig {
 
 #[derive(Deserialize, Serialize, PartialEq, Debug, Clone)]
 pub struct RepoDetails {
+    // Choice for ignoring repository usage for any task
+    pub ignore: bool,
+
     // Relative path (to repo_parent_dir) of gitignore template repo to use
     pub repo_path: String,
 
@@ -109,6 +112,7 @@ impl Config {
             repo: RepoConfig {
                 repo_parent_dir: r_parent_dir.into_os_string().into_string().unwrap(),
                 repo_dets: vec![RepoDetails {
+                    ignore: false,
                     repo_url: default_gitignore_repo,
                     repo_path: r_path,
                 }],
@@ -175,10 +179,17 @@ impl Config {
             });
         if read_bytes > 0 {
             // If config file isn't empty
-            config = toml::from_str(config_string.trim())?;
-            debug!("Done parsing config file");
-
-            return Ok(config);
+            match toml::from_str(config_string.trim()) {
+                Ok(cfg) => {
+                    debug!("Done parsing config file");
+                    return Ok(cfg);
+                }
+                Err(_) => {
+                    info!("Backing up config file");
+                    std::fs::copy(config_file_path, format!("{}.bak", config_file_path))
+                        .expect("Could not backup config file");
+                }
+            }
         }
 
         info!("Config file is empty, using default config values");
@@ -410,6 +421,7 @@ mod tests {
             repo: RepoConfig {
                 repo_parent_dir: parent_dir.into_os_string().into_string().unwrap(),
                 repo_dets: vec![RepoDetails {
+                    ignore: false,
                     repo_url: "https://github.com/github/gitignore".to_string(),
                     repo_path: "github/gitignore".to_string(),
                 }],
