@@ -8,6 +8,7 @@ use git2::build::CheckoutBuilder;
 use git2::{Object, Repository};
 use std::collections::btree_map::BTreeMap;
 // use std::collections::hash_map::HashMap;
+use std::error::Error;
 use std::fs::{self, DirBuilder, DirEntry, File, OpenOptions};
 use std::io;
 use std::io::prelude::*;
@@ -44,8 +45,8 @@ pub fn generate_gitignore(app_options: &mut Options) -> Result<(), io::Error> {
         .read(true)
         .write(true)
         .create(true)
-        .open(&app_options.output_file)
-        .expect("Error opening gitignore consolidation file");
+        .open(&app_options.output_file)?;
+    // .expect("Error opening gitignore consolidation file");
     debug!("Opened gitignore consolidation file");
 
     available_templates =
@@ -82,18 +83,16 @@ pub fn generate_gitignore(app_options: &mut Options) -> Result<(), io::Error> {
         }
     }
 
-    consolidation_file
-        .set_len(0)
-        .expect("Error truncating consolidation file");
-    consolidation_file
-        .write_all(consolidation_string.as_bytes())
-        .expect("Error writing to gitignore consolidation file");
+    consolidation_file.set_len(0)?;
+    // .expect("Error truncating consolidation file");
+    consolidation_file.write_all(consolidation_string.as_bytes())?;
+    // .expect("Error writing to gitignore consolidation file");
     info!("Done generating gitignore: {}", app_options.output_file);
 
     Ok(())
 }
 
-pub fn list_templates(app_options: &mut Options) {
+pub fn list_templates(app_options: &mut Options) -> Result<(), Box<dyn Error>> {
     info!("Listing available templates");
 
     let list_width = 6;
@@ -135,10 +134,12 @@ pub fn list_templates(app_options: &mut Options) {
     println!("{}", list_string);
 
     info!("Done listing available templates");
+
+    Ok(())
 }
 
 // Generate a B-tree map of available requested templates
-fn parse_templates(app_options: &mut Options) -> Result<BTreeMap<String, Vec<String>>, io::Error> {
+fn parse_templates(app_options: &mut Options) -> Result<TemplatePaths, Box<dyn Error>> {
     debug!("Parsing template options");
 
     let absolute_repo_path: String;
@@ -213,20 +214,24 @@ pub fn update_gitignore_repo(app_options: &Options) -> Result<(), git2::Error> {
 
     debug!("Repository is available");
 
-    repo.find_remote("origin")
-        .unwrap()
-        .fetch(&["master"], None, None)
-        .expect("Failed to fetch remote repo");
 
-    fetch_head = repo
-        .find_reference("FETCH_HEAD")
-        .unwrap()
-        .peel(git2::ObjectType::Any)
-        .expect("Error peeling object from FETCH_HEAD reference");
-    repo.reset(&fetch_head, git2::ResetType::Hard, Some(&mut checkout))
-        .expect("Error resetting repo head to FETCH_HEAD");
+        debug!("Repository is available: {}", repo_det.repo_path);
 
-    info!("Done updating gitignore repo");
+        repo.find_remote("origin")
+            .unwrap()
+            .fetch(&["master"], None, None)?;
+        // .expect("Failed to fetch remote repo");
+
+        let fetch_head = repo
+            .find_reference("FETCH_HEAD")
+            .unwrap()
+            .peel(git2::ObjectType::Any)?;
+        // .expect("Error peeling object from FETCH_HEAD reference");
+        repo.reset(&fetch_head, git2::ResetType::Hard, Some(&mut checkout))?;
+        // .expect("Error resetting repo head to FETCH_HEAD");
+
+        info!("Updated gitignore repo: {}", repo_det.repo_path);
+    }
 
     Ok(())
 }

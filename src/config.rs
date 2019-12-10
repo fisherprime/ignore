@@ -11,6 +11,7 @@ use clap::{App, Arg, ArgMatches};
 use serde::{Deserialize, Serialize};
 // use std::collections::hash_map::HashMap;
 use std::collections::btree_map::BTreeMap;
+use std::error::Error;
 use std::fs::{DirBuilder, File, OpenOptions};
 use std::io::prelude::*;
 use std::io::ErrorKind;
@@ -112,6 +113,7 @@ impl Config {
     // Parse config file contents
     // Passing a reference to avoid taking ownership
     fn parse(&self, config_file_path: &str) -> Option<Config> {
+    fn parse(&self, config_file_path: &str) -> Result<Config, Box<dyn Error>> {
         debug!("Parsing config file");
 
         let config: Config;
@@ -168,7 +170,7 @@ impl Config {
             });
         if read_bytes > 0 {
             // If config file isn't empty
-            config = toml::from_str(config_string.trim()).unwrap();
+            config = toml::from_str(config_string.trim())?;
             debug!("Done parsing config file");
 
             return Some(config);
@@ -177,13 +179,7 @@ impl Config {
         info!("Config file is empty, using default config values");
 
         // Write default config to file
-        config_file
-            .write_all(
-                toml::to_string(&self)
-                    .expect("Error writing to config file")
-                    .as_bytes(),
-            )
-            .unwrap();
+        config_file.write_all(toml::to_string(&self)?.as_bytes())?;
         debug!("Updated config file with config values");
 
         None
@@ -192,7 +188,7 @@ impl Config {
 
 impl Options {
     // Parse command arguments
-    pub fn parse() -> Option<Options> {
+    pub fn parse() -> Result<Options, Box<dyn Error>> {
         debug!("Parsing command arguments & config file");
 
         let mut config_file_path = String::new();
@@ -221,7 +217,7 @@ impl Options {
         .get_matches();
         debug!("Done parsing command flags");
 
-        setup_logger(&matches).expect("Error setting up logger");
+        setup_logger(&matches)?;
 
         default_config_file =
             dirs::config_dir().expect("Error obtaining system's config directory");
@@ -248,18 +244,21 @@ impl Options {
 
         app_options = Options {
             config: match app_config.parse(&config_file_path) {
-                Some(cfg) => cfg,
-                None => app_config.clone(),
+                Ok(cfg) => cfg,
+                Err(err) => {
+                    error!("Config parse error, using the default: {}", err);
+
+                    app_config.clone()
+                }
             },
             generate_gitignore: matches.is_present("template"),
             list_templates: matches.is_present("list"),
             update_repo: if matches.is_present("update") {
                 true
             } else {
-                (now.duration_since(app_config.core.last_run).unwrap()
+                (now.duration_since(app_config.core.last_run)?
                     > Duration::new(REPO_UPDATE_LIMIT, 0))
-                    || (now.duration_since(app_config.core.last_run).unwrap()
-                        == Duration::new(0, 500))
+                    || (now.duration_since(app_config.core.last_run)? == Duration::new(0, 500))
             },
             config_path: config_file_path,
             output_file: matches
@@ -285,7 +284,7 @@ impl Options {
         debug!("Done parsing command arguments & config file");
         debug!("Options: {:?}", app_options);
 
-        Some(app_options)
+        Ok(app_options)
     }
 
     pub fn save(self) {
@@ -425,17 +424,18 @@ mod tests {
 
         // Parse probably empty config and populate it with current config
         config = match config.parse(&config_path.clone().into_os_string().into_string().unwrap()) {
-            Some(cfg) => cfg,
-            None => config.clone(),
+            Ok(cfg) => cfg,
+            Err(err) => {
+                error!("Config parse error, using the default: {}", err);
+
+                config.clone()
+            }
         };
 
         // Parse current config file & assert is same as prior parse
-        if let Some(parsed_config) =
-            config.parse(&config_path.into_os_string().into_string().unwrap())
-        {
-            assert!(parsed_config.eq(&config));
-        } else {
-            panic!("Could not parse config");
+        match config.parse(&config_path.into_os_string().into_string().unwrap()) {
+            Ok(cfg) => assert!(cfg.eq(&config)),
+            Err(err) => panic!("Could not parse config: {}", err),
         }
     }
 }
