@@ -1,5 +1,5 @@
 <a name=""></a>
-##  (2019-12-09)
+##  (2019-12-10)
 
 
 #### Performance
@@ -16,17 +16,6 @@
   *  Rework functions into struct methods ([9241a390](9241a390))
   *  Section the Config struct ([d141d133](d141d133))
 * **main.rs:**  Replace unwrap with expect ([cb3302d0](cb3302d0))
-
-#### Bug Fixes
-
-* **.gitlab-ci.yml:**  Fix after_script spelling error ([cd8c0f3c](cd8c0f3c))
-* **app.rs:**
-  *  Remove directories from template list ([1464c853](1464c853))
-  *  Fix repository update function ([afd88a19](afd88a19))
-  *  Fix consolidation file overwrite ([a1869487](a1869487))
-* **config.rs:**
-  *  Remove lifetimes & change to String ([c1dfd9d9](c1dfd9d9))
-  *  Fix WIP linter warnings ([19f7d843](19f7d843))
 
 #### Features
 
@@ -48,5 +37,20 @@
   *  Add config struct tests ([a3402bc6](a3402bc6))
   *  Add the Options struct ([3acbead2](3acbead2))
 * **src/*.rs:**
+  *  Add support for multiple template sources ([50b9ce9e](50b9ce9e))
   *  Add support for user & path templates ([dab1c82f](dab1c82f))
   *  Populate initial files with code ([0d1fbc57](0d1fbc57))
+
+#### Bug Fixes
+
+* **.gitlab-ci.yml:**
+  *  Remove unnecessary build job ([b2b743b3](b2b743b3))
+  *  Fix after_script spelling error ([cd8c0f3c](cd8c0f3c))
+* **Cargo.toml:**  Correct erroneous version bump ([d108400d](d108400d))
+* **app.rs:**
+  *  Remove directories from template list ([1464c853](1464c853))
+  *  Fix repository update function ([afd88a19](afd88a19))
+  *  Fix consolidation file overwrite ([a1869487](a1869487))
+* **config.rs:**
+  *  Remove lifetimes & change to String ([c1dfd9d9](c1dfd9d9))
+  *  Fix WIP linter warnings ([19f7d843](19f7d843))
