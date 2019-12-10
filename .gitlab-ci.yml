@@ -2,7 +2,6 @@ image: rustlang/rust:nightly
 
 stages:
   - test
-  - build
 
 variables:
   CARGO_HOME: $CI_PROJECT_DIR/.cargo
@@ -19,15 +18,5 @@ test:
     - develop
   script:
     - cargo test --verbose
-  after_script:
-    - printf "Test complete\n"
   allow_failure: false
-
-build:
-  stage: build
-  only:
-    - master
-  script:
-    - cargo build --verbose
-  after_script:
-    - printf "Build complete\n"
+# TODO: consider test for master branch
