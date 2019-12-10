@@ -17,13 +17,15 @@ use std::path::Path;
 
 type TemplatePaths = BTreeMap<String, Vec<String>>;
 
-pub fn run(mut app_options: Options) -> Result<(), Box<dyn Error>> {
+pub fn run() -> Result<(), Box<dyn Error>> {
+    let mut app_options = Options::parse()?;
+
     if app_options.update_repo {
         update_gitignore_repo(&app_options)?;
     }
 
     if app_options.list_templates {
-        list_templates(&mut app_options)?
+        list_templates(&mut app_options)?;
     }
 
     if app_options.generate_gitignore {
