@@ -23,9 +23,6 @@ use std::path::Path;
 /// Binary tree hash map type alias for simplicity.
 type TemplatePaths = BTreeMap<String, Vec<String>>;
 
-pub fn run() -> Result<(), Box<dyn Error>> {
-    let mut app_options = Options::parse()?;
-
 /// run handles the execution of ignore-ng's functions.
 ///
 /// Using the parsed runtime config options, runs a task specified by ignore-ng's arguments then
@@ -43,6 +40,7 @@ pub fn run() -> Result<(), Box<dyn Error>> {
 ///     panic!("Application error: {}", err)
 /// }
 /// ```
+pub fn run(mut app_options: Options) -> Result<(), Box<dyn Error>> {
     if app_options.update_repo {
         update_gitignore_repo(&app_options)?;
     }

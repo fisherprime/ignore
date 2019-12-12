@@ -18,9 +18,15 @@ mod app;
 mod config;
 
 use app::run;
+use config::Options;
 
 fn main() {
-    if let Err(err) = run() {
-        panic!("Application error: {}", err)
+    match Options::parse() {
+        Ok(app_options) => {
+            if let Err(err) = run(app_options) {
+                panic!("Application error: {}", err)
+            }
+        }
+        Err(err) => panic!("Application error: {}", err),
     }
 }
