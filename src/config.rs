@@ -20,63 +20,68 @@ use std::time::{Duration, SystemTime};
 
 const REPO_UPDATE_LIMIT: u64 = 60 * 60 * 24 * 7;
 
+/// Struct containing runtime options parsed from a config file.
 #[derive(Deserialize, Serialize, PartialEq, Debug, Clone)]
 pub struct Config {
-    // Binary specific configuration options
+    /// Binary specific configuration options.
     pub core: CoreConfig,
 
-    // Repository specific configuration options
+    /// Repository specific configuration options.
     pub repo: RepoConfig,
 }
 
+/// Struct containing the config file's core(not repo config) runtime options.
 #[derive(Deserialize, Serialize, PartialEq, Debug, Clone)]
 pub struct CoreConfig {
-    // Timestamp of the last time the binary was run
+    /// Timestamp of the last time the binary was run.
     pub last_run: SystemTime,
 }
 
+/// Struct containing the config file's common & array of repository specific runtime options.
 #[derive(Deserialize, Serialize, PartialEq, Debug, Clone)]
 pub struct RepoConfig {
-    // Directory containing gitignore repositories
+    /// Directory containing gitignore repositories.
     pub repo_parent_dir: String,
 
-    // Details for multiple/single template repository
+    /// Details for multiple/single template repository.
     pub repo_dets: Vec<RepoDetails>,
 }
 
+/// Struct containing the config file's repository specific runtime options.
 #[derive(Deserialize, Serialize, PartialEq, Debug, Clone)]
 pub struct RepoDetails {
-    // Choice for ignoring repository usage for any task
+    /// Choice for ignoring repository usage for any task.
     pub ignore: bool,
 
-    // Relative path (to repo_parent_dir) of gitignore template repo to use
+    /// Relative path (to repo_parent_dir) of gitignore template repo to use.
     pub repo_path: String,
 
-    // URL of git repository containing gitignore templates
+    /// URL of git repository containing gitignore templates.
     pub repo_url: String,
 }
 
+/// Struct containing runtime options gathered from the config file and command arguments.
 #[derive(Debug)]
 pub struct Options {
-    // Config read from file
+    /// Config read from file.
     pub config: Config,
 
-    // Option to generate gitignore file
+    /// Option to generate gitignore file.
     pub generate_gitignore: bool,
 
-    // Option to list available templates
+    /// Option to list available templates.
     pub list_templates: bool,
 
-    // Option to update repository
+    /// Option to update repository.
     pub update_repo: bool,
 
-    // Path to configuration file
+    /// Path to configuration file.
     pub config_path: String,
 
-    // Path to output generated gitignore
+    /// Path to output generated gitignore.
     pub output_file: String,
 
-    // List of templates user desires to use in gitignore generation
+    /// List of templates user desires to use in gitignore generation.
     pub templates: Vec<String>,
     // B-Tree hash map of all available template paths
     // pub template_paths: BTreeMap<String, Vec<String>>,
@@ -91,8 +96,8 @@ impl Config {
 
         let now = SystemTime::now();
 
-        // TODO: fix, messy section
-        // Get repo_path as defined in the Options struct
+        // TODO: fix, messy_repo_path.
+        // Get repo_path as defined in the Options struct.
         let gitignore_repo_split: Vec<&str> = default_gitignore_repo.split('/').collect();
         let gitignore_split_len = gitignore_repo_split.len();
 
@@ -101,12 +106,13 @@ impl Config {
             gitignore_repo_split[gitignore_split_len - 2],
             gitignore_repo_split[gitignore_split_len - 1]
         );
+        // TODO: end of messy_repo_path.
         r_parent_dir = dirs::cache_dir().expect("Error obtaining system's cache directory");
         r_parent_dir.push("ignore-ng/repos");
 
         Config {
             core: CoreConfig {
-                // Sort out duration since error
+                // Sort out duration since error???
                 last_run: now - Duration::new(0, 500),
             },
             repo: RepoConfig {
@@ -120,8 +126,8 @@ impl Config {
         }
     }
 
-    // Parse config file contents
-    // Passing a reference to avoid taking ownership
+    // Parse config file contents.
+    // Passing a reference to avoid taking ownership.
     fn parse(&self, config_file_path: &str) -> Result<Config, Box<dyn Error>> {
         debug!("Parsing config file");
 
@@ -147,7 +153,7 @@ impl Config {
             .unwrap_or_else(|err| {
                 if err.kind() == ErrorKind::NotFound {
                     if config_file_path.eq(default_config_file.into_os_string().to_str().unwrap()) {
-                        // Create default config directory
+                        // Create default config file's directory.
                         if let Some(conf_dir) = Path::new(&config_file_path).parent() {
                             if !conf_dir.is_dir() {
                                 DirBuilder::new()
@@ -178,7 +184,7 @@ impl Config {
                 0
             });
         if read_bytes > 0 {
-            // If config file isn't empty
+            // Operations run if the config file is not empty.
             match toml::from_str(config_string.trim()) {
                 Ok(cfg) => {
                     debug!("Done parsing config file");
@@ -195,7 +201,7 @@ impl Config {
         info!("Config file is empty, using default config values");
         config = self.clone();
 
-        // Write default config to file
+        // Write default config to file.
         config_file.write_all(toml::to_string(&self)?.as_bytes())?;
         debug!("Updated config file with config values");
 
@@ -204,7 +210,7 @@ impl Config {
 }
 
 impl Options {
-    // Parse command arguments
+    // Parse command arguments.
     pub fn parse() -> Result<Options, Box<dyn Error>> {
         debug!("Parsing command arguments & config file");
 
@@ -219,7 +225,7 @@ impl Options {
 
         let now = SystemTime::now();
 
-        // env!("CARGO_PKG_VERSION")
+        // `env!("CARGO_PKG_VERSION")` replaced with `crate_version!`
         matches = App::new("ignore-ng")
             .setting(AppSettings::ArgRequiredElseHelp)
             .version(crate_version!())
@@ -440,10 +446,8 @@ mod tests {
      *         assert!(options);
      *     } */
 
-    /**
-     * Assert correctness of the default config options
-     */
     #[test]
+    /// Assert correctness of the default config options
     fn config_create_test() {
         let config = Config::new();
 
@@ -469,18 +473,15 @@ mod tests {
         assert!(hardcode_config.repo.eq(&config.repo));
     }
 
-    /**
-     * Assert correctness of parsed config file.
-     * Should test run only if file exists?
-     */
     #[test]
+    /// Assert correctness of parsed default config file.
     fn config_file_parse_test() {
         let mut config = Config::new();
 
         let mut config_path = dirs::config_dir().unwrap();
         config_path.push("ignore-ng/config.toml");
 
-        // Parse probably empty config and populate it with current config
+        // Parse default config file, populating it with the default config if non-existent.
         config = match config.parse(&config_path.clone().into_os_string().into_string().unwrap()) {
             Ok(cfg) => cfg,
             Err(err) => {
@@ -490,7 +491,7 @@ mod tests {
             }
         };
 
-        // Parse current config file & assert is same as prior parse
+        // Parse current config file & assert is similar to the default.
         match config.parse(&config_path.into_os_string().into_string().unwrap()) {
             Ok(cfg) => assert!(cfg.eq(&config)),
             Err(err) => panic!("Could not parse config: {}", err),

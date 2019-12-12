@@ -1,6 +1,13 @@
 // SPDX-License-Identifier: MIT
 
-// Loading macros must be done at the crate root
+#![warn(missing_docs)]
+
+//! The ignore-ng crate generates gitignore files.
+//!
+//! This crate uses locally cached gitignore template definitions that are consolidated into a
+//! gitignore file.
+
+// Loading macros must be done at the crate root.
 #[macro_use]
 extern crate log;
 

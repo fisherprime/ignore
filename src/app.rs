@@ -2,6 +2,11 @@
 
 extern crate git2;
 
+/// `self::`` doesn't work here.
+///
+/// `super::` and `crate::` work.
+/// Note, `super::` & `self::` are relative to the current module while `crate::` is relative to
+/// the crate root.
 use crate::config::Options;
 
 // use git2::{Object, Repository};
@@ -15,12 +20,29 @@ use std::io;
 use std::io::prelude::*;
 use std::path::Path;
 
-// Binary tree type alias for simplicity
+/// Binary tree hash map type alias for simplicity.
 type TemplatePaths = BTreeMap<String, Vec<String>>;
 
 pub fn run() -> Result<(), Box<dyn Error>> {
     let mut app_options = Options::parse()?;
 
+/// run handles the execution of ignore-ng's functions.
+///
+/// Using the parsed runtime config options, runs a task specified by ignore-ng's arguments then
+/// overwrites the config file.
+/// This function returns an error to the calling function on occurrence.
+///
+/// # Examples
+///
+/// ```
+/// mod app;
+///
+/// use app::run;
+///
+/// if let Err(err) = run() {
+///     panic!("Application error: {}", err)
+/// }
+/// ```
     if app_options.update_repo {
         update_gitignore_repo(&app_options)?;
     }
@@ -38,6 +60,30 @@ pub fn run() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
+/// generate_gitignore consolidates locally cached gitignore template files.
+///
+/// This function iterates over the defined paths for the user defined gitignore template
+/// arguments, consolidating the available template into a file with some sugar.
+///
+/// # Panics
+///
+/// This function will panic should reading the contents of a gitignore template fail.
+///
+/// # Examples
+///
+/// **Requires the user specify the `template` argument.**
+///
+/// ```
+/// mod app;
+/// mod config;
+///
+/// use app::generate_gitignore;
+/// use config::Options;
+///
+/// if let Ok(mut opts) = Options::parse() {
+///     generate_gitignore(&mut opts);
+/// }
+/// ```
 fn generate_gitignore(app_options: &mut Options) -> Result<(), io::Error> {
     info!("Generating gitignore");
 
@@ -65,7 +111,7 @@ fn generate_gitignore(app_options: &mut Options) -> Result<(), io::Error> {
         return Ok(());
     }
 
-    // Iterate over template_paths, opening necessary file & concatenating them
+    // Iterate over template_paths, opening necessary file & concatenating them.
     for (template, file_paths) in available_templates {
         let file_paths = &file_paths;
 
@@ -107,8 +153,9 @@ fn generate_gitignore(app_options: &mut Options) -> Result<(), io::Error> {
 
         if template_vec.len().gt(&1) {
             for temp_string in template_vec {
-                // TODO: replace with deduplication logic
+                // TODO: replace with deduplication_logic.
                 template_string += &temp_string;
+                // TODO: end replacement deduplication_logic.
             }
         } else {
             template_string += &template_vec.pop().unwrap();
@@ -162,7 +209,7 @@ fn list_templates(app_options: &mut Options) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-// Generate a B-tree map of available requested templates
+// Generate a B-tree map of available requested templates.
 fn parse_templates(app_options: &mut Options) -> Result<TemplatePaths, Box<dyn Error>> {
     debug!("Parsing template options");
 
@@ -245,7 +292,7 @@ fn update_gitignore_repo(app_options: &Options) -> Result<(), git2::Error> {
     Ok(())
 }
 
-// Using a BTreeMap is faster
+// Using a BTreeMap is faster.
 /* fn sort_template_paths(
  *     unsorted_map: &HashMap<String, Vec<String>>,
  * ) -> Option<HashMap<String, Vec<String>>> {
@@ -303,7 +350,7 @@ fn update_template_paths(dir: &Path, template_paths: &mut TemplatePaths) -> io::
         dir.as_os_str().to_str().unwrap()
     );
 
-    // Store template name & path in hashmap
+    // Store template name & path in hashmap.
     for entry in fs::read_dir(dir)? {
         let entry_path_string: String;
 
@@ -323,7 +370,7 @@ fn update_template_paths(dir: &Path, template_paths: &mut TemplatePaths) -> io::
             continue;
         }
 
-        // TODO: refine filetype removal
+        // TODO: refine_filetype_removal.
         let t_filename = entry.file_name();
         #[allow(clippy::single_char_pattern)]
         let t_filename_split = t_filename
@@ -334,6 +381,7 @@ fn update_template_paths(dir: &Path, template_paths: &mut TemplatePaths) -> io::
         let template = template_paths
             .entry(t_filename_split[0].to_string())
             .or_default();
+        // TODO: end refine_filetype_removal.
 
         template.push(entry_path_string);
     }
