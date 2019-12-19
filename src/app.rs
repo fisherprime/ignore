@@ -53,7 +53,7 @@ pub fn run(mut app_options: Options) -> Result<(), Box<dyn Error>> {
         generate_gitignore(&mut app_options)?;
     }
 
-    app_options.save();
+    app_options.save_config()?;
 
     Ok(())
 }

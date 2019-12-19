@@ -131,8 +131,6 @@ impl Config {
     fn parse(&self, config_file_path: &str) -> Result<Config, Box<dyn Error>> {
         debug!("Parsing config file");
 
-        let config: Config;
-
         let read_bytes: usize;
 
         let mut config_string = String::new();
@@ -199,13 +197,17 @@ impl Config {
         }
 
         info!("Config file is empty, using default config values");
-        config = self.clone();
 
-        // Write default config to file.
+        self.update_config_file(&mut config_file)?;
+
+        Ok(self.clone())
+    }
+
+    fn update_config_file(&self, config_file: &mut File) -> Result<(), Box<dyn Error>> {
         config_file.write_all(toml::to_string(&self)?.as_bytes())?;
         debug!("Updated config file with config values");
 
-        Ok(config)
+        Ok(())
     }
 }
 
@@ -285,7 +287,6 @@ impl Options {
 
         if let Some(path) = matches.value_of("config") {
             config_file_path = path.to_string();
-
             debug!("Using user supplied config file path");
         } else {
             let def_cfg_os_str = default_config_file.into_os_string();
@@ -307,7 +308,6 @@ impl Options {
                 Ok(cfg) => cfg,
                 Err(err) => {
                     error!("Config parse error, using the default: {}", err);
-
                     app_config.clone()
                 }
             },
@@ -348,7 +348,7 @@ impl Options {
         Ok(app_options)
     }
 
-    pub fn save(self) {
+    pub fn save_config(self) -> Result<(), Box<dyn Error>> {
         let mut config_file: File;
 
         debug!("Updating config in file path: {}", self.config_path);
@@ -363,14 +363,10 @@ impl Options {
         config_file
             .set_len(0)
             .expect("Error truncating config file");
-        config_file
-            .write_all(
-                toml::to_string(&self.config)
-                    .expect("Error writing to config file")
-                    .as_bytes(),
-            )
-            .expect("Error writing to config file");
-        debug!("Updated config file");
+
+        self.config.update_config_file(&mut config_file)?;
+
+        Ok(())
     }
 }
 
@@ -486,7 +482,6 @@ mod tests {
             Ok(cfg) => cfg,
             Err(err) => {
                 error!("Config parse error, using the default: {}", err);
-
                 config.clone()
             }
         };
