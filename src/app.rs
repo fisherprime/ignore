@@ -60,8 +60,9 @@ pub fn run(mut app_options: Options) -> Result<(), Box<dyn Error>> {
 
 /// generate_gitignore consolidates locally cached gitignore template files.
 ///
-/// This function iterates over the defined paths for the user defined gitignore template
-/// arguments, consolidating the available template into a file with some sugar.
+/// This function calls the template option parsing function then the template consolidation
+/// function for the user defined gitignore template arguments, yielding a consolidated gitignore
+/// file.
 ///
 /// # Panics
 ///
@@ -82,32 +83,53 @@ pub fn run(mut app_options: Options) -> Result<(), Box<dyn Error>> {
 ///     generate_gitignore(&mut opts);
 /// }
 /// ```
-fn generate_gitignore(app_options: &mut Options) -> Result<(), io::Error> {
+fn generate_gitignore(app_options: &mut Options) -> Result<(), Box<dyn Error>> {
     info!("Generating gitignore");
-
-    let delimiter = "# ----";
-    let available_templates: TemplatePaths;
 
     let mut consolidation_file: File;
 
-    let mut consolidation_string = "#\n# .gitignore\n#\n".to_string();
+    let consolidation_string: String;
 
-    consolidation_file = OpenOptions::new()
-        .read(true)
-        .write(true)
-        .create(true)
-        .open(&app_options.output_file)?;
-    // .expect("Error opening gitignore consolidation file");
-    debug!("Opened gitignore consolidation file");
-
-    available_templates =
+    let available_templates =
         parse_templates(app_options).expect("Failed to parse the template argument");
     debug!("Available templates: {:?}", available_templates);
 
-    if available_templates.is_empty() {
-        warn!("Specified template(s) could not be located; names are case sensitive");
-        return Ok(());
+    let result = {
+        consolidation_string = concatenate_templates(available_templates)?;
+        !consolidation_string.is_empty()
+    };
+
+    if result {
+        consolidation_file = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .open(&app_options.output_file)?;
+        debug!("Opened and/or created gitignore consolidation file");
+
+        consolidation_file.set_len(0)?;
+        consolidation_file.write_all(consolidation_string.as_bytes())?;
+        info!("Generated gitignore: {}", app_options.output_file);
+    } else {
+        warn!(
+            "Specified template(s) could not be located (names are case sensitive): {:?}",
+            app_options.templates
+        );
     }
+
+    Ok(())
+}
+
+fn concatenate_templates(available_templates: TemplatePaths) -> Result<String, Box<dyn Error>> {
+    let delimiter = "# ----";
+
+    let mut consolidation_string = String::new();
+
+    if available_templates.is_empty() {
+        return Ok(consolidation_string);
+    }
+
+    consolidation_string += "#\n# .gitignore\n#\n";
 
     // Iterate over template_paths, opening necessary file & concatenating them.
     for (template, file_paths) in available_templates {
@@ -163,13 +185,7 @@ fn generate_gitignore(app_options: &mut Options) -> Result<(), io::Error> {
         consolidation_string += template_string.as_str();
     }
 
-    consolidation_file.set_len(0)?;
-    // .expect("Error truncating consolidation file");
-    consolidation_file.write_all(consolidation_string.as_bytes())?;
-    // .expect("Error writing to gitignore consolidation file");
-    info!("Generated gitignore: {}", app_options.output_file);
-
-    Ok(())
+    Ok(consolidation_string)
 }
 
 fn list_templates(app_options: &mut Options) -> Result<(), Box<dyn Error>> {
@@ -274,15 +290,12 @@ fn update_gitignore_repo(app_options: &Options) -> Result<(), git2::Error> {
         repo.find_remote("origin")
             .unwrap()
             .fetch(&["master"], None, None)?;
-        // .expect("Failed to fetch remote repo");
 
         let fetch_head = repo
             .find_reference("FETCH_HEAD")
             .unwrap()
             .peel(git2::ObjectType::Any)?;
-        // .expect("Error peeling object from FETCH_HEAD reference");
         repo.reset(&fetch_head, git2::ResetType::Hard, Some(&mut checkout))?;
-        // .expect("Error resetting repo head to FETCH_HEAD");
 
         info!("Updated gitignore repo: {}", repo_det.repo_path);
     }
