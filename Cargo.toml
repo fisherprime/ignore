@@ -1,6 +1,6 @@
 [package]
-name = "ignore-ng"
-version = "1.0.0"
+name = "ignore"
+version = "1.0.1"
 authors = ["fisherprime <mbock.ernie40@gmail.com>"]
 description = "A .gitignore file generator."
 edition = "2018"

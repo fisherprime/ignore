@@ -1,13 +1,16 @@
 // SPDX-License-Identifier: MIT
 
+//! The app module defines elements that perform the user-availed tasks.
+
 extern crate git2;
 
-/// `self::`` doesn't work here.
-///
-/// `super::` and `crate::` work.
-/// Note, `super::` & `self::` are relative to the current module while `crate::` is relative to
-/// the crate root.
-use crate::config::Options;
+/* `self::`` doesn't work here.
+ *
+ * `super::` and `crate::` work.
+ * Note: `super::` & `self::` are relative to the current module while `crate::` is relative to the
+ * crate root.
+ */
+use crate::config::{Operation, Options, RepoDetails};
 
 // use git2::{Object, Repository};
 // use std::collections::hash_map::HashMap;
@@ -20,10 +23,20 @@ use std::io;
 use std::io::prelude::*;
 use std::path::Path;
 
-/// Binary tree hash map type alias for simplicity.
+// Macro used to reduce repetition when defining a cached repository's absolute path.
+macro_rules! absolute_repo_path {
+    ($parent:expr, $base:expr) => {
+        format!(
+            "{}/{}",
+            $parent.config.repo.repo_parent_dir, $base.repo_path
+        );
+    };
+}
+
+/// Binary tree hash-map alias for simplicity.
 type TemplatePaths = BTreeMap<String, Vec<String>>;
 
-/// run handles the execution of ignore-ng's functions.
+/// Handles the execution of ignore-ng's functions.
 ///
 /// Using the parsed runtime config options, runs a task specified by ignore-ng's arguments then
 /// overwrites the config file.
@@ -34,23 +47,27 @@ type TemplatePaths = BTreeMap<String, Vec<String>>;
 /// ```
 /// mod app;
 ///
-/// use app::run;
+/// use app::*;
 ///
 /// if let Err(err) = run() {
 ///     panic!("Application error: {}", err)
 /// }
 /// ```
 pub fn run(mut app_options: Options) -> Result<(), Box<dyn Error>> {
-    if app_options.update_repo {
-        update_gitignore_repo(&app_options)?;
+    if app_options.needs_update {
+        update_gitignore_repos(&app_options)?;
+
+        if app_options.operation == Operation::UpdateRepo {
+            app_options.save_config()?;
+            return Ok(());
+        }
     }
 
-    if app_options.list_templates {
-        list_templates(&mut app_options)?;
-    }
-
-    if app_options.generate_gitignore {
-        generate_gitignore(&mut app_options)?;
+    match app_options.operation {
+        Operation::GenerateGitignore => generate_gitignore(&mut app_options)?,
+        Operation::ListTemplates => list_templates(&mut app_options)?,
+        Operation::UpdateRepo => update_gitignore_repos(&app_options)?,
+        Operation::Else => info!("No operation specified, this shouldn't have happened"),
     }
 
     app_options.save_config()?;
@@ -58,9 +75,9 @@ pub fn run(mut app_options: Options) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-/// generate_gitignore consolidates locally cached gitignore template files.
+/// Consolidates locally cached gitignore template files.
 ///
-/// This function calls the template option parsing function then the template consolidation
+/// This function calls the template argument parsing function then the template consolidation
 /// function for the user defined gitignore template arguments, yielding a consolidated gitignore
 /// file.
 ///
@@ -90,8 +107,7 @@ fn generate_gitignore(app_options: &mut Options) -> Result<(), Box<dyn Error>> {
 
     let consolidation_string: String;
 
-    let available_templates =
-        parse_templates(app_options).expect("Failed to parse the template argument");
+    let available_templates = parse_templates(app_options)?;
     debug!("Available templates: {:?}", available_templates);
 
     let result = {
@@ -110,16 +126,23 @@ fn generate_gitignore(app_options: &mut Options) -> Result<(), Box<dyn Error>> {
         consolidation_file.set_len(0)?;
         consolidation_file.write_all(consolidation_string.as_bytes())?;
         info!("Generated gitignore: {}", app_options.output_file);
-    } else {
-        warn!(
-            "Specified template(s) could not be located (names are case sensitive): {:?}",
-            app_options.templates
-        );
+
+        return Ok(());
     }
+
+    warn!(
+        "Specified template(s) could not be located (names are case sensitive): {:?}",
+        app_options.templates
+    );
 
     Ok(())
 }
 
+/// Concatenates gitignore template files specified by the user.
+///
+/// This function acts on a binary tree hash-map of gitignore template filepaths for the template
+/// arguments specified by a user.
+/// The files indicated in the hash-map are consolidated into a single file.
 fn concatenate_templates(available_templates: TemplatePaths) -> Result<String, Box<dyn Error>> {
     let delimiter = "# ----";
 
@@ -146,10 +169,7 @@ fn concatenate_templates(available_templates: TemplatePaths) -> Result<String, B
                 Ok(mut template_file) => {
                     let mut temp_string = String::new();
 
-                    template_file
-                        .read_to_string(&mut temp_string)
-                        .expect("Error reading template file");
-
+                    template_file.read_to_string(&mut temp_string)?;
                     template_vec.push(temp_string.to_string());
 
                     debug!(
@@ -173,9 +193,9 @@ fn concatenate_templates(available_templates: TemplatePaths) -> Result<String, B
 
         if template_vec.len().gt(&1) {
             for temp_string in template_vec {
-                // TODO: replace with deduplication_logic.
+                // TODO: replace with per file deduplication_logic.
                 template_string += &temp_string;
-                // TODO: end replacement deduplication_logic.
+                // TODO: end replace with per file deduplication_logic.
             }
         } else {
             template_string += &template_vec.pop().unwrap();
@@ -188,6 +208,7 @@ fn concatenate_templates(available_templates: TemplatePaths) -> Result<String, B
     Ok(consolidation_string)
 }
 
+/// Lists the names of projects, tools, languages, ... with cached gitignore templates.
 fn list_templates(app_options: &mut Options) -> Result<(), Box<dyn Error>> {
     info!("Listing available templates");
 
@@ -198,12 +219,6 @@ fn list_templates(app_options: &mut Options) -> Result<(), Box<dyn Error>> {
     let mut key_vector: Vec<String>;
 
     let template_paths = generate_template_paths(app_options)?;
-
-    /* app_options.template_paths = match sort_template_paths(&app_options.template_paths) {
-     *     Some(sort) => sort,
-     *     None => panic!("Template file paths B-tree map not sorted"),
-     * };
-     * debug!("Sorted template hash: {:?}", app_options.template_paths); */
 
     key_vector = template_paths.keys().cloned().collect();
     key_vector.sort_by(|a, b| a.to_lowercase().cmp(&b.to_lowercase()));
@@ -223,7 +238,11 @@ fn list_templates(app_options: &mut Options) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-// Generate a B-tree map of available requested templates.
+/// Generates a binary tree hash-map of available template arguments supplied by a user.
+///
+/// A hash-map of filepaths for available gitignore template files is generated.
+/// This function filters the output of generate_template_paths, to include entries explicitly
+/// requested by the user.
 fn parse_templates(app_options: &mut Options) -> Result<TemplatePaths, Box<dyn Error>> {
     debug!("Parsing template options");
 
@@ -235,7 +254,7 @@ fn parse_templates(app_options: &mut Options) -> Result<TemplatePaths, Box<dyn E
 
     /* template_paths = match sort_template_paths(&template_paths) {
      *     Some(sort) => sort,
-     *     None => panic!("Template file paths B-tree map not sorted"),
+     *     None => panic!("Template file paths hash map not sorted"),
      * };
      * debug!("Sorted template hash: {:?}", template_paths); */
 
@@ -251,8 +270,15 @@ fn parse_templates(app_options: &mut Options) -> Result<TemplatePaths, Box<dyn E
     Ok(available_templates)
 }
 
-// REF: https://github.com/nabijaczleweli/cargo-update/blob/master/src/ops/mod.rs
-fn update_gitignore_repo(app_options: &Options) -> Result<(), git2::Error> {
+/// Updates the cached gitignore template repositories (git only).
+///
+/// This function fetches and merges the latest HEAD for an existing git repository, cloning one if
+/// not locally cached.
+/// This operation will not update a repository if it hasn't reached staleness (as defined by the
+/// const REPO_UPDATE_LIMIT) & the update operation isn't desired by the user.
+///
+/// REF: https://github.com/nabijaczleweli/cargo-update/blob/master/src/ops/mod.rs
+fn update_gitignore_repos(app_options: &Options) -> Result<(), Box<dyn Error>> {
     info!("Updating gitignore repo(s)");
 
     let mut checkout = CheckoutBuilder::new();
@@ -261,46 +287,53 @@ fn update_gitignore_repo(app_options: &Options) -> Result<(), git2::Error> {
         /* let repo: Repository;
          * let fetch_head: Object; */
 
-        let absolute_repo_path = format!(
-            "{}/{}",
-            app_options.config.repo.repo_parent_dir, repo_det.repo_path
-        );
+        if !repo_det.auto_update && app_options.operation != Operation::UpdateRepo {
+            continue;
+        }
 
-        let repo = Repository::discover(&absolute_repo_path).unwrap_or_else(|_| {
-            info!(
-                "Repository not cached locally, cloning: {}",
-                repo_det.repo_path
-            );
+        let absolute_repo_path = absolute_repo_path!(app_options, repo_det);
 
-            let err_string = &format!(
-                "Failed to clone: {} into: {:?}",
-                repo_det.repo_url, repo_det.repo_path
-            );
+        match Repository::discover(&absolute_repo_path) {
+            Ok(repo) => {
+                debug!("Repository is cached locally: {}", repo_det.repo_path);
+                repo.find_remote("origin")?.fetch(&["master"], None, None)?;
 
-            DirBuilder::new()
-                .recursive(true)
-                .create(&app_options.config.repo.repo_parent_dir)
-                .expect("Error creating repository cache directory hierarchy");
+                let fetch_head = repo
+                    .find_reference("FETCH_HEAD")?
+                    .peel(git2::ObjectType::Any)?;
+                repo.reset(&fetch_head, git2::ResetType::Hard, Some(&mut checkout))?;
+            }
+            Err(_) => {
+                info!(
+                    "Repository not cached locally, cloning: {}",
+                    repo_det.repo_path
+                );
 
-            Repository::clone_recurse(&repo_det.repo_url, &absolute_repo_path).expect(err_string)
-        });
-
-        debug!("Repository is available: {}", repo_det.repo_path);
-
-        repo.find_remote("origin")
-            .unwrap()
-            .fetch(&["master"], None, None)?;
-
-        let fetch_head = repo
-            .find_reference("FETCH_HEAD")
-            .unwrap()
-            .peel(git2::ObjectType::Any)?;
-        repo.reset(&fetch_head, git2::ResetType::Hard, Some(&mut checkout))?;
+                clone_repository(app_options, &repo_det)?;
+            }
+        };
 
         info!("Updated gitignore repo: {}", repo_det.repo_path);
     }
 
     Ok(())
+}
+
+/// Clones a repository into a local cache directory.
+fn clone_repository(
+    app_options: &Options,
+    repo_det: &RepoDetails,
+) -> Result<Repository, Box<dyn Error>> {
+    let absolute_repo_path = absolute_repo_path!(app_options, repo_det);
+
+    DirBuilder::new()
+        .recursive(true)
+        .create(&app_options.config.repo.repo_parent_dir)?;
+
+    Ok(Repository::clone_recurse(
+        &repo_det.repo_url,
+        &absolute_repo_path,
+    )?)
 }
 
 // Using a BTreeMap is faster.
@@ -331,6 +364,9 @@ fn update_gitignore_repo(app_options: &Options) -> Result<(), git2::Error> {
  *     Some(sorted_map)
  * } */
 
+/// Generates a binary tree hash-map of filepaths (TemplatePaths).
+///
+/// This function calls the update_template_paths function that updates the TemplatePaths hash-map.
 fn generate_template_paths(app_options: &mut Options) -> Result<TemplatePaths, Box<dyn Error>> {
     let mut template_paths = TemplatePaths::new();
 
@@ -339,13 +375,11 @@ fn generate_template_paths(app_options: &mut Options) -> Result<TemplatePaths, B
             continue;
         }
 
-        let absolute_repo_path = format!(
-            "{}/{}",
-            app_options.config.repo.repo_parent_dir, repo_det.repo_path
-        );
+        let absolute_repo_path = absolute_repo_path!(app_options, repo_det);
 
+        // If the repository doesn't exist
         if !Path::new(&absolute_repo_path).is_dir() {
-            update_gitignore_repo(&app_options)?;
+            clone_repository(&app_options, &repo_det)?;
         };
 
         update_template_paths(&Path::new(&absolute_repo_path), &mut template_paths)?;
@@ -355,6 +389,10 @@ fn generate_template_paths(app_options: &mut Options) -> Result<TemplatePaths, B
     Ok(template_paths)
 }
 
+/// Populates the TemplatePaths hash-map with filepath entries.
+///
+/// This function recurses on the contents of the cached gitignore template repositories, appending
+/// filepath entries to the TemplatePaths hash-map for all available templates.
 fn update_template_paths(dir: &Path, template_paths: &mut TemplatePaths) -> io::Result<()> {
     debug!(
         "Updating template file paths, dir: {}",
@@ -363,9 +401,9 @@ fn update_template_paths(dir: &Path, template_paths: &mut TemplatePaths) -> io::
 
     // Store template name & path in hashmap.
     for entry in fs::read_dir(dir)? {
-        let entry_path_string: String;
-
         let entry = entry?;
+
+        let entry_path_string: String;
 
         if ignore_file(&entry) {
             continue;
@@ -381,18 +419,9 @@ fn update_template_paths(dir: &Path, template_paths: &mut TemplatePaths) -> io::
             continue;
         }
 
-        // TODO: refine_filetype_removal.
-        let t_filename = entry.file_name();
-        #[allow(clippy::single_char_pattern)]
-        let t_filename_split = t_filename
-            .to_str()
-            .unwrap()
-            .split(".")
-            .collect::<Vec<&str>>();
         let template = template_paths
-            .entry(t_filename_split[0].to_string())
+            .entry(remove_filetype(entry).unwrap())
             .or_default();
-        // TODO: end refine_filetype_removal.
 
         template.push(entry_path_string);
     }
@@ -405,6 +434,26 @@ fn update_template_paths(dir: &Path, template_paths: &mut TemplatePaths) -> io::
     Ok(())
 }
 
+/// Removes the filetype from a pathname.
+///
+/// This function removes the filetype after the `.` from a file's basename.
+fn remove_filetype(entry: DirEntry) -> Option<String> {
+    // TODO: refine_filetype_removal, check for the existence of one, ...
+    let t_filename = entry.file_name();
+
+    #[allow(clippy::single_char_pattern)]
+    let t_filename_split = t_filename
+        .to_str()
+        .unwrap()
+        .split(".")
+        .collect::<Vec<&str>>();
+
+    Some(t_filename_split[0].to_string())
+
+    // TODO: end refine_filetype_removal.
+}
+
+/// Checks whether a directory/file is hidden.
 fn is_hidden(entry: &DirEntry) -> bool {
     #[allow(clippy::single_char_pattern)]
     entry
@@ -414,6 +463,7 @@ fn is_hidden(entry: &DirEntry) -> bool {
         .unwrap_or(false)
 }
 
+/// Checks whether a file should be ignored during TemplatePaths population.
 fn ignore_file(entry: &DirEntry) -> bool {
     // let ignores = Vec!["CHANGELOG", "LICENSE", "README", "CONTRIBUTING"];
     entry

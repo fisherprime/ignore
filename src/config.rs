@@ -1,5 +1,8 @@
 // SPDX-License-Identifier: MIT
 
+//! The config module defines elements necessary for the setup and configuration of the runtime
+//! environment.
+
 extern crate chrono;
 extern crate dirs;
 extern crate fern;
@@ -9,15 +12,18 @@ extern crate toml;
 // use std::collections::btree_map::BTreeMap;
 // use std::collections::hash_map::HashMap;
 // use std::ffi::OsString;
+// use std::io::ErrorKind;
 use clap::{App, AppSettings, Arg, ArgMatches};
 use serde::{Deserialize, Serialize};
 use std::error::Error;
 use std::fs::{DirBuilder, File, OpenOptions};
 use std::io::prelude::*;
-use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime};
 
+/// Constant specifying the time to consider a repository's contents as state as an unsigned 64 bit
+/// integer.
+/// Set to 7 days.
 const REPO_UPDATE_LIMIT: u64 = 60 * 60 * 24 * 7;
 
 /// Struct containing runtime options parsed from a config file.
@@ -50,6 +56,9 @@ pub struct RepoConfig {
 /// Struct containing the config file's repository specific runtime options.
 #[derive(Deserialize, Serialize, PartialEq, Debug, Clone)]
 pub struct RepoDetails {
+    /// Choice for automatically updating the cached repo.
+    pub auto_update: bool,
+
     /// Choice for ignoring repository usage for any task.
     pub ignore: bool,
 
@@ -61,19 +70,16 @@ pub struct RepoDetails {
 }
 
 /// Struct containing runtime options gathered from the config file and command arguments.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Options {
     /// Config read from file.
     pub config: Config,
 
-    /// Option to generate gitignore file.
-    pub generate_gitignore: bool,
+    /// Exclusive operation specified by user.
+    pub operation: Operation,
 
-    /// Option to list available templates.
-    pub list_templates: bool,
-
-    /// Option to update repository.
-    pub update_repo: bool,
+    /// Option used to auto-update cached gitignore tempalte repositories.
+    pub needs_update: bool,
 
     /// Path to configuration file.
     pub config_path: String,
@@ -83,11 +89,25 @@ pub struct Options {
 
     /// List of templates user desires to use in gitignore generation.
     pub templates: Vec<String>,
-    // B-Tree hash map of all available template paths
-    // pub template_paths: BTreeMap<String, Vec<String>>,
+}
+
+/// Enum containing exclusive operations that can be performed.
+#[derive(Debug, Clone, PartialEq)]
+pub enum Operation {
+    /// Option to list available templates.
+    ListTemplates,
+    /// Option to update repository.
+    UpdateRepo,
+    /// Option to generate gitignore file.
+    GenerateGitignore,
+    /* /// Option to skip running any operation.
+     * Skip, */
+    /// Option for unknown operation.
+    Else,
 }
 
 impl Config {
+    /// Function used to generate the default Config struct.
     pub fn new() -> Config {
         let default_gitignore_repo: String = "https://github.com/github/gitignore".to_string();
         let r_path: String;
@@ -118,6 +138,7 @@ impl Config {
             repo: RepoConfig {
                 repo_parent_dir: r_parent_dir.into_os_string().into_string().unwrap(),
                 repo_dets: vec![RepoDetails {
+                    auto_update: false,
                     ignore: false,
                     repo_url: default_gitignore_repo,
                     repo_path: r_path,
@@ -126,8 +147,8 @@ impl Config {
         }
     }
 
-    // Parse config file contents.
-    // Passing a reference to avoid taking ownership.
+    // Function used to parse config file contents, populating a Config struct.
+    // Passing a reference to Config struct avoid taking ownership.
     fn parse(&self, config_file_path: &str) -> Result<Config, Box<dyn Error>> {
         debug!("Parsing config file");
 
@@ -143,46 +164,40 @@ impl Config {
             dirs::config_dir().expect("Error obtaining system's config directory");
         default_config_file.push("ignore-ng/config.toml");
 
+        /* match OpenOptions::new()
+         *     .read(true)
+         *     .write(true)
+         *     .create(true)
+         *     .open(config_file_path)
+         * {
+         *     Ok(conf) => config_file = conf,
+         *     Err(err) => {
+         *         if err.kind() == ErrorKind::NotFound {
+         *             self.create_default_config_file(
+         *                 &default_config_file,
+         *                 &Path::new(config_file_path),
+         *             )?;
+         *         } else {
+         *             // panic!("Could not find config file: {:?}", err);
+         *             return Err(Box::new(err));
+         *         }
+         *     }
+         * }; */
+
+        if !Path::new(config_file_path).exists() {
+            self.create_default_config_file(&default_config_file, &Path::new(config_file_path))?;
+        }
+
         config_file = OpenOptions::new()
             .read(true)
             .write(true)
             .create(true)
-            .open(config_file_path)
-            .unwrap_or_else(|err| {
-                if err.kind() == ErrorKind::NotFound {
-                    if config_file_path.eq(default_config_file.into_os_string().to_str().unwrap()) {
-                        // Create default config file's directory.
-                        if let Some(conf_dir) = Path::new(&config_file_path).parent() {
-                            if !conf_dir.is_dir() {
-                                DirBuilder::new()
-                                    .recursive(true)
-                                    .create(conf_dir)
-                                    .expect("Error creating config file directory hierarchy");
-                            }
-                        }
-
-                        File::create(config_file_path).expect("Error creating default config file")
-                    } else {
-                        panic!("Could not find config file: {:?}", err);
-                    }
-                } else {
-                    panic!("Could not open config file: {:?}", err);
-                }
-            });
-
+            .open(config_file_path)?;
         read_bytes = config_file
             .read_to_string(&mut config_string)
-            .unwrap_or_else(|err| {
-                if err.kind() == ErrorKind::NotFound {
-                    error!("No config file: {}", err);
-                } else {
-                    error!("Error reading config file err: {}", err);
-                }
+            .unwrap_or_else(|_| 0);
 
-                0
-            });
         if read_bytes > 0 {
-            // Operations run if the config file is not empty.
             match toml::from_str(config_string.trim()) {
                 Ok(cfg) => {
                     debug!("Done parsing config file");
@@ -190,14 +205,12 @@ impl Config {
                 }
                 Err(_) => {
                     info!("Backing up config file");
-                    std::fs::copy(config_file_path, format!("{}.bak", config_file_path))
-                        .expect("Could not backup config file");
+                    std::fs::copy(config_file_path, format!("{}.bak", config_file_path))?;
                 }
             }
         }
 
         info!("Config file is empty, using default config values");
-
         self.update_config_file(&mut config_file)?;
 
         Ok(self.clone())
@@ -205,7 +218,26 @@ impl Config {
 
     fn update_config_file(&self, config_file: &mut File) -> Result<(), Box<dyn Error>> {
         config_file.write_all(toml::to_string(&self)?.as_bytes())?;
-        debug!("Updated config file with config values");
+        debug!("Updated config file");
+
+        Ok(())
+    }
+
+    fn create_default_config_file(
+        &self,
+        default_config_file: &Path,
+        config_file_path: &Path,
+    ) -> Result<(), Box<dyn Error>> {
+        if config_file_path.eq(default_config_file) {
+            info!("Creating default config file");
+
+            let conf_dir = Path::new(&config_file_path).parent().unwrap();
+            if !conf_dir.is_dir() {
+                DirBuilder::new().recursive(true).create(conf_dir)?
+            }
+
+            File::create(config_file_path)?;
+        }
 
         Ok(())
     }
@@ -224,8 +256,6 @@ impl Options {
         let app_options: Options;
 
         let matches: ArgMatches;
-
-        let now = SystemTime::now();
 
         // `env!("CARGO_PKG_VERSION")` replaced with `crate_version!`
         matches = App::new("ignore-ng")
@@ -304,22 +334,15 @@ impl Options {
          *     .replace(default_gitignore_repo, ""); */
 
         app_options = Options {
-            config: match app_config.parse(&config_file_path) {
-                Ok(cfg) => cfg,
-                Err(err) => {
+            config: app_config
+                .parse(&config_file_path)
+                .map(|cfg| cfg)
+                .unwrap_or_else(|err| {
                     error!("Config parse error, using the default: {}", err);
                     app_config.clone()
-                }
-            },
-            generate_gitignore: matches.is_present("template"),
-            list_templates: matches.is_present("list"),
-            update_repo: if matches.is_present("update") {
-                true
-            } else {
-                (now.duration_since(app_config.core.last_run)?
-                    > Duration::new(REPO_UPDATE_LIMIT, 0))
-                    || (now.duration_since(app_config.core.last_run)? == Duration::new(0, 500))
-            },
+                }),
+            operation: get_operation(&matches),
+            needs_update: check_staleness(&app_config.core.last_run)?,
             config_path: config_file_path,
             output_file: matches
                 .value_of("output")
@@ -357,12 +380,9 @@ impl Options {
             .read(true)
             .write(true)
             .create(true)
-            .open(self.config_path)
-            .unwrap();
+            .open(self.config_path)?;
 
-        config_file
-            .set_len(0)
-            .expect("Error truncating config file");
+        config_file.set_len(0)?;
 
         self.config.update_config_file(&mut config_file)?;
 
@@ -370,11 +390,56 @@ impl Options {
     }
 }
 
+/// Determines the operation specified by the user.
+///
+/// This function checks for the presence of user arguments as provided in the ArgMatches
+/// struct created by clap.
+fn get_operation(matches: &ArgMatches) -> Operation {
+    if matches.is_present("template") {
+        return Operation::GenerateGitignore;
+    }
+
+    if matches.is_present("list") {
+        return Operation::ListTemplates;
+    }
+
+    if matches.is_present("update") {
+        return Operation::UpdateRepo;
+    }
+
+    Operation::Else
+}
+
+/// Checks for staleness of the cached gitignore template repositories.
+///
+/// This function compares the current SystemTime to the last repository update time.
+/// This function returns true (staleness state) should the difference be greater than
+/// REPO_UPDATE_LIMIT; otherwise, false.
+fn check_staleness(last_update: &SystemTime) -> Result<bool, Box<dyn Error>> {
+    let now = SystemTime::now();
+    let update_test = {
+        ((now.duration_since(*last_update)? > Duration::new(REPO_UPDATE_LIMIT, 0))
+            || (now.duration_since(*last_update)? == Duration::new(0, 500)))
+    };
+
+    if update_test {
+        return Ok(true);
+    }
+
+    Ok(false)
+}
+
 // REF: https://mathiasbynens.be/demo/url-regex
 // TODO: validate regex
 /* const URL_PREFIX_REGEX: &str = */
 /* r"#(?i)\b((?:[a-z][\w-]+:(?:/{1,3}|[a-z0-9%])|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2,4}/))"; */
 
+/// Configures the fern logger.
+///
+/// This function configures the logger to output log messages using the ISO date format with
+/// verbosity levels specified by the user arguments (within ArgMatches).
+/// The arguments set the output verbosity for this crate to a maximum log level of either: Info,
+/// Debug, Trace level entries of none altogether.
 fn setup_logger(matches: &ArgMatches) -> Result<(), fern::InitError> {
     debug!("Setting up logger");
 
@@ -459,6 +524,7 @@ mod tests {
             repo: RepoConfig {
                 repo_parent_dir: parent_dir.into_os_string().into_string().unwrap(),
                 repo_dets: vec![RepoDetails {
+                    auto_update: false,
                     ignore: false,
                     repo_url: "https://github.com/github/gitignore".to_string(),
                     repo_path: "github/gitignore".to_string(),
@@ -478,18 +544,18 @@ mod tests {
         config_path.push("ignore-ng/config.toml");
 
         // Parse default config file, populating it with the default config if non-existent.
-        config = match config.parse(&config_path.clone().into_os_string().into_string().unwrap()) {
-            Ok(cfg) => cfg,
-            Err(err) => {
+        config = config
+            .parse(&config_path.clone().into_os_string().into_string().unwrap())
+            .map(|cfg| cfg)
+            .unwrap_or_else(|err| {
                 error!("Config parse error, using the default: {}", err);
                 config.clone()
-            }
-        };
+            });
 
         // Parse current config file & assert is similar to the default.
-        match config.parse(&config_path.into_os_string().into_string().unwrap()) {
-            Ok(cfg) => assert!(cfg.eq(&config)),
-            Err(err) => panic!("Could not parse config: {}", err),
-        }
+        config
+            .parse(&config_path.into_os_string().into_string().unwrap())
+            .map(|cfg| assert!(cfg.eq(&config)))
+            .unwrap_or_else(|err| panic!("Could not parse config: {}", err));
     }
 }

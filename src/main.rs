@@ -4,8 +4,7 @@
 
 //! The ignore-ng crate generates gitignore files.
 //!
-//! This crate uses locally cached gitignore template definitions that are consolidated into a
-//! gitignore file.
+//! This crate consolidates locally cached gitignore template definitions into a gitignore file.
 
 // Loading macros must be done at the crate root.
 #[macro_use]
@@ -20,13 +19,14 @@ mod config;
 use app::run;
 use config::Options;
 
+/// This is the entry point for the crate's binary.
+///
+/// This function initiates the setting up of the running environment then calls the function to
+/// run the underlying logic.
 fn main() {
-    match Options::parse() {
-        Ok(app_options) => {
-            if let Err(err) = run(app_options) {
-                panic!("Application error: {}", err)
-            }
-        }
-        Err(err) => panic!("Application error: {}", err),
-    }
+    Options::parse()
+        .map(|app_options| {
+            run(app_options).unwrap_or_else(|err| panic!("Application error: {}", err))
+        })
+        .unwrap_or_else(|err| panic!("Application error: {}", err));
 }
