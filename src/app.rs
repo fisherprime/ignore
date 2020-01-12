@@ -36,22 +36,25 @@ macro_rules! absolute_repo_path {
 /// Binary tree hash-map alias for simplicity.
 type TemplatePaths = BTreeMap<String, Vec<String>>;
 
-/// Handles the execution of ignore-ng's functions.
+/// Handles the execution of ignore's functions.
 ///
-/// Using the parsed runtime config options, runs a task specified by ignore-ng's arguments then
+/// Using the parsed runtime config [`Options`], runs a task specified by ignore's arguments then
 /// overwrites the config file.
 /// This function returns an error to the calling function on occurrence.
 ///
 /// # Examples
 ///
 /// ```
-/// mod app;
+/// // mod app;
+/// // mod config;
 ///
-/// use app::*;
+/// use crate::app::run;
+/// use crate::config::Options;
 ///
-/// if let Err(err) = run() {
-///     panic!("Application error: {}", err)
-/// }
+/// Options::parse().map(|opts| {
+///     run(opts)
+///         .unwrap_or_else(|err| panic!("Application error: {}", err))
+/// })
 /// ```
 pub fn run(mut app_options: Options) -> Result<(), Box<dyn Error>> {
     if app_options.needs_update {
@@ -77,28 +80,25 @@ pub fn run(mut app_options: Options) -> Result<(), Box<dyn Error>> {
 
 /// Consolidates locally cached gitignore template files.
 ///
-/// This function calls the template argument parsing function then the template consolidation
-/// function for the user defined gitignore template arguments, yielding a consolidated gitignore
-/// file.
-///
-/// # Panics
-///
-/// This function will panic should reading the contents of a gitignore template fail.
+/// This function calls [`parse_templates`] (template argument parsing) then
+/// [`concatenate_templates`] (template consolidation) for the user defined gitignore template
+/// arguments, yielding a consolidated gitignore file.
 ///
 /// # Examples
 ///
 /// **Requires the user specify the `template` argument.**
 ///
 /// ```
-/// mod app;
-/// mod config;
+/// // mod app;
+/// // mod config;
 ///
 /// use app::generate_gitignore;
 /// use config::Options;
 ///
-/// if let Ok(mut opts) = Options::parse() {
-///     generate_gitignore(&mut opts);
-/// }
+/// Options::parse()
+///     .map(|opts| generate_gitignore(&mut opts))
+///     .unwrap_or_else(|err| panic!("Application error: {}", err))
+///
 /// ```
 fn generate_gitignore(app_options: &mut Options) -> Result<(), Box<dyn Error>> {
     info!("Generating gitignore");
@@ -140,9 +140,8 @@ fn generate_gitignore(app_options: &mut Options) -> Result<(), Box<dyn Error>> {
 
 /// Concatenates gitignore template files specified by the user.
 ///
-/// This function acts on a binary tree hash-map of gitignore template filepaths for the template
-/// arguments specified by a user.
-/// The files indicated in the hash-map are consolidated into a single file.
+/// This function acts on [`TemplatePaths`] for the template arguments specified by a user.
+/// The filespaths listed in the [`TemplatePaths`] are then consolidated into a single file.
 fn concatenate_templates(available_templates: TemplatePaths) -> Result<String, Box<dyn Error>> {
     let delimiter = "# ----";
 
@@ -238,11 +237,12 @@ fn list_templates(app_options: &mut Options) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-/// Generates a binary tree hash-map of available template arguments supplied by a user.
+/// Generates [`TemplatePaths`] for the available gitignore template arguments supplied by a user.
 ///
-/// A hash-map of filepaths for available gitignore template files is generated.
-/// This function filters the output of generate_template_paths, to include entries explicitly
-/// requested by the user.
+/// This function generates a [`TemplatePaths`] item for the available gitignore template files
+/// desired by a user.
+/// Using the output of [`generate_template_paths`], the [`TemplatePaths`] is filtered to include
+/// entries explicitly requested by the user.
 fn parse_templates(app_options: &mut Options) -> Result<TemplatePaths, Box<dyn Error>> {
     debug!("Parsing template options");
 
@@ -277,7 +277,7 @@ fn parse_templates(app_options: &mut Options) -> Result<TemplatePaths, Box<dyn E
 /// This operation will not update a repository if it hasn't reached staleness (as defined by the
 /// const REPO_UPDATE_LIMIT) & the update operation isn't desired by the user.
 ///
-/// REF: https://github.com/nabijaczleweli/cargo-update/blob/master/src/ops/mod.rs
+/// REF: [github/nabijaczleweli](https://github.com/nabijaczleweli/cargo-update/blob/master/src/ops/mod.rs)
 fn update_gitignore_repos(app_options: &Options) -> Result<(), Box<dyn Error>> {
     info!("Updating gitignore repo(s)");
 
@@ -364,7 +364,7 @@ fn clone_repository(
  *     Some(sorted_map)
  * } */
 
-/// Generates a binary tree hash-map of filepaths (TemplatePaths).
+/// Generates a [`TemplatePaths`] item (binary tree hash-map of gitignore template filepaths.
 ///
 /// This function calls the update_template_paths function that updates the TemplatePaths hash-map.
 fn generate_template_paths(app_options: &mut Options) -> Result<TemplatePaths, Box<dyn Error>> {
@@ -389,10 +389,10 @@ fn generate_template_paths(app_options: &mut Options) -> Result<TemplatePaths, B
     Ok(template_paths)
 }
 
-/// Populates the TemplatePaths hash-map with filepath entries.
+/// Populates a [`TemplatePaths`] item with filepath entries.
 ///
 /// This function recurses on the contents of the cached gitignore template repositories, appending
-/// filepath entries to the TemplatePaths hash-map for all available templates.
+/// filepath entries to the [`TemplatePaths`] hash-map for all available templates.
 fn update_template_paths(dir: &Path, template_paths: &mut TemplatePaths) -> io::Result<()> {
     debug!(
         "Updating template file paths, dir: {}",
@@ -463,7 +463,7 @@ fn is_hidden(entry: &DirEntry) -> bool {
         .unwrap_or(false)
 }
 
-/// Checks whether a file should be ignored during TemplatePaths population.
+/// Checks whether a file should be ignored during [`TemplatePaths`] population.
 fn ignore_file(entry: &DirEntry) -> bool {
     // let ignores = Vec!["CHANGELOG", "LICENSE", "README", "CONTRIBUTING"];
     entry

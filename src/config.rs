@@ -21,12 +21,15 @@ use std::io::prelude::*;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime};
 
-/// Constant specifying the time to consider a repository's contents as state as an unsigned 64 bit
-/// integer.
-/// Set to 7 days.
-const REPO_UPDATE_LIMIT: u64 = 60 * 60 * 24 * 7;
+/// Constant specifying the amount of seconds in a day as [`u64`].
+const SECONDS_IN_DAY: u64 = 60 * 60 * 24;
 
-/// Struct containing runtime options parsed from a config file.
+/// Constant specifying the time to consider a repository's contents as state as [`u64`] (unsigned
+/// 64-bit integer).
+/// Set to 7 days.
+const REPO_UPDATE_LIMIT: u64 = SECONDS_IN_DAY * 7;
+
+/// Struct containing the runtime options parsed from a config file.
 #[derive(Deserialize, Serialize, PartialEq, Debug, Clone)]
 pub struct Config {
     /// Binary specific configuration options.
@@ -36,7 +39,7 @@ pub struct Config {
     pub repo: RepoConfig,
 }
 
-/// Struct containing the config file's core(not repo config) runtime options.
+/// Struct containing the config file's core (not repository related) runtime options.
 #[derive(Deserialize, Serialize, PartialEq, Debug, Clone)]
 pub struct CoreConfig {
     /// Timestamp of the last time the binary was run.
@@ -49,7 +52,7 @@ pub struct RepoConfig {
     /// Directory containing gitignore repositories.
     pub repo_parent_dir: String,
 
-    /// Details for multiple/single template repository.
+    /// [`RepoDetails`] for multiple/single template repository.
     pub repo_dets: Vec<RepoDetails>,
 }
 
@@ -102,12 +105,12 @@ pub enum Operation {
     GenerateGitignore,
     /* /// Option to skip running any operation.
      * Skip, */
-    /// Option for unknown operation.
+    /// Option for unknown operations.
     Else,
 }
 
 impl Config {
-    /// Function used to generate the default Config struct.
+    /// Generates the default [`Config`].
     pub fn new() -> Config {
         let default_gitignore_repo: String = "https://github.com/github/gitignore".to_string();
         let r_path: String;
@@ -147,7 +150,7 @@ impl Config {
         }
     }
 
-    // Function used to parse config file contents, populating a Config struct.
+    /// Parses config file contents & generates a [`Config`] item.
     // Passing a reference to Config struct avoid taking ownership.
     fn parse(&self, config_file_path: &str) -> Result<Config, Box<dyn Error>> {
         debug!("Parsing config file");
@@ -216,6 +219,7 @@ impl Config {
         Ok(self.clone())
     }
 
+    /// Updates the contents of the config file with the current ([`Config`]).
     fn update_config_file(&self, config_file: &mut File) -> Result<(), Box<dyn Error>> {
         config_file.write_all(toml::to_string(&self)?.as_bytes())?;
         debug!("Updated config file");
@@ -223,6 +227,7 @@ impl Config {
         Ok(())
     }
 
+    /// Creates a config file in the default location populated with the current [`Config`].
     fn create_default_config_file(
         &self,
         default_config_file: &Path,
@@ -244,7 +249,7 @@ impl Config {
 }
 
 impl Options {
-    // Parse command arguments.
+    /// Parses command arguments.
     pub fn parse() -> Result<Options, Box<dyn Error>> {
         debug!("Parsing command arguments & config file");
 
@@ -371,6 +376,7 @@ impl Options {
         Ok(app_options)
     }
 
+    /// A wrapper function to allow saving a [`Config`] contained within an [`Options`] item.
     pub fn save_config(self) -> Result<(), Box<dyn Error>> {
         let mut config_file: File;
 
@@ -390,10 +396,10 @@ impl Options {
     }
 }
 
-/// Determines the operation specified by the user.
+/// Determines the operation specified in the user supplied arguments.
 ///
-/// This function checks for the presence of user arguments as provided in the ArgMatches
-/// struct created by clap.
+/// This function checks for the presence of user arguments as provided in the [`ArgMatches`]
+/// struct created by [`clap`].
 fn get_operation(matches: &ArgMatches) -> Operation {
     if matches.is_present("template") {
         return Operation::GenerateGitignore;
@@ -412,9 +418,9 @@ fn get_operation(matches: &ArgMatches) -> Operation {
 
 /// Checks for staleness of the cached gitignore template repositories.
 ///
-/// This function compares the current SystemTime to the last repository update time.
+/// This function compares the current [`SystemTime`] to the last repository update time.
 /// This function returns true (staleness state) should the difference be greater than
-/// REPO_UPDATE_LIMIT; otherwise, false.
+/// [`REPO_UPDATE_LIMIT`]; otherwise, false.
 fn check_staleness(last_update: &SystemTime) -> Result<bool, Box<dyn Error>> {
     let now = SystemTime::now();
     let update_test = {
@@ -434,10 +440,10 @@ fn check_staleness(last_update: &SystemTime) -> Result<bool, Box<dyn Error>> {
 /* const URL_PREFIX_REGEX: &str = */
 /* r"#(?i)\b((?:[a-z][\w-]+:(?:/{1,3}|[a-z0-9%])|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2,4}/))"; */
 
-/// Configures the fern logger.
+/// Configures the [`fern`] logger.
 ///
 /// This function configures the logger to output log messages using the ISO date format with
-/// verbosity levels specified by the user arguments (within ArgMatches).
+/// verbosity levels specified by the user arguments (within [`ArgMatches`]).
 /// The arguments set the output verbosity for this crate to a maximum log level of either: Info,
 /// Debug, Trace level entries of none altogether.
 fn setup_logger(matches: &ArgMatches) -> Result<(), fern::InitError> {
