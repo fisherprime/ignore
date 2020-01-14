@@ -2,7 +2,6 @@ image: rustlang/rust:nightly
 
 stages:
   - test
-  - docs
 
 variables:
   CARGO_HOME: $CI_PROJECT_DIR/.cargo
@@ -20,11 +19,3 @@ test:
     - cargo test --verbose
   allow_failure: false
 # IDEA: run tests on master
-
-docs:
-  stage: docs
-  only:
-    - master
-  script:
-    - cargo doc --release --verbose
-  allow_failure: false
