@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 
 #![warn(missing_docs)]
+
+// NOTE: unneeded, this is not a library.
 // #![warn(missing_doc_code_examples)]
 
 //! The ignore-ng crate generates gitignore files.
