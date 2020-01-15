@@ -324,6 +324,8 @@ fn clone_repository(
     app_options: &Options,
     repo_det: &RepoDetails,
 ) -> Result<Repository, Box<dyn Error>> {
+    info!("Cloning gitignore repo");
+
     let absolute_repo_path = absolute_repo_path!(app_options, repo_det);
 
     DirBuilder::new()
