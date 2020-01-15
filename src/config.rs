@@ -36,22 +36,30 @@ const GITIGNORE_DEFAULT_REPO: &str = "https://github.com/github/gitignore";
 /// gitignore template repositories.
 const GITIGNORE_REPO_CACHE_SUBDIR: &str = "ignore/repos";
 
+/// Constant specifying the location of the last run state file from some parent directory (i.e.
+/// system cache directory).
+const STATE_FILE_SPATH: &str = "ignore/.state";
+
+/// Struct containing identifiers on the state of the binary's last run.
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub struct State {
+    /// Timestamp of the last time the binary was run.
+    pub last_run: SystemTime,
+}
+
 /// Struct containing the runtime options parsed from a config file.
 #[derive(Deserialize, Serialize, PartialEq, Debug, Clone)]
 pub struct Config {
-    /// Binary specific configuration options.
-    pub core: CoreConfig,
-
+    /* /// Binary specific configuration options.
+     * pub core: CoreConfig, */
     /// Repository specific configuration options.
     pub repo: RepoConfig,
 }
 
-/// Struct containing the config file's core (not repository related) runtime options.
-#[derive(Deserialize, Serialize, PartialEq, Debug, Clone)]
-pub struct CoreConfig {
-    /// Timestamp of the last time the binary was run.
-    pub last_run: SystemTime,
-}
+/* /// Struct containing the config file's core (not repository related) runtime options.
+ * #[derive(Deserialize, Serialize, PartialEq, Debug, Clone)]
+ * pub struct CoreConfig {
+ * } */
 
 /// Struct containing the config file's common & array of repository specific runtime options.
 #[derive(Deserialize, Serialize, PartialEq, Debug, Clone)]
@@ -59,7 +67,7 @@ pub struct RepoConfig {
     /// Directory containing gitignore repositories.
     pub repo_parent_dir: String,
 
-    /// [`RepoDetails`] for multiple/single template repository.
+    /// [`RepoDetails`] for multiple template repositories.
     pub repo_dets: Vec<RepoDetails>,
 }
 
@@ -85,6 +93,9 @@ pub struct Options {
     /// Config read from file.
     pub config: Config,
 
+    /// Previous runtime state as read from file.
+    pub state: State,
+
     /// Exclusive operation specified by user.
     pub operation: Operation,
 
@@ -93,6 +104,9 @@ pub struct Options {
 
     /// Path to configuration file.
     pub config_path: String,
+
+    /// Path to last runtime state file.
+    pub state_path: String,
 
     /// Path to output generated gitignore.
     pub output_file: String,
@@ -116,6 +130,66 @@ pub enum Operation {
     Else,
 }
 
+/// Enum containing runtime related filetypes.
+pub enum RuntimeFile {
+    /// Option to update the config file.
+    ConfigFile,
+    /// Option to update the state file
+    StateFile,
+}
+
+impl State {
+    /// Generates the default [`State`].
+    pub fn new() -> State {
+        let now = SystemTime::now();
+
+        // HACK: Sort some duration_since error
+        State {
+            last_run: now - Duration::new(0, 500),
+        }
+    }
+
+    /// Parses state file contents & generates a [`Config`] item.
+    pub fn parse(self) -> Result<State, Box<dyn Error>> {
+        let mut state_file_path = dirs::cache_dir().unwrap();
+        state_file_path.push(STATE_FILE_SPATH);
+
+        let read_bytes: usize;
+
+        let mut state_string = String::new();
+
+        let mut state_file: File;
+
+        state_file = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .open(state_file_path)?;
+        read_bytes = state_file
+            .read_to_string(&mut state_string)
+            .unwrap_or_else(|_| 0);
+
+        if read_bytes > 0 {
+            if let Ok(state) = toml::from_str(state_string.trim()) {
+                debug!("Done parsing state file");
+                return Ok(state);
+            }
+        }
+
+        info!("State file is empty");
+
+        Ok(self.clone())
+    }
+
+    /// Updates the contents of the state file with the current [`State`].
+    fn update_file(&self, state_file: &mut File) -> Result<(), Box<dyn Error>> {
+        state_file.write_all(toml::to_string(&self)?.as_bytes())?;
+        debug!("Updated state file");
+
+        Ok(())
+    }
+}
+
 impl Config {
     /// Generates the default [`Config`].
     pub fn new() -> Config {
@@ -123,8 +197,6 @@ impl Config {
         let r_path: String;
 
         let mut r_parent_dir: PathBuf;
-
-        let now = SystemTime::now();
 
         // TODO: fix, messy_repo_path.
         // Get repo_path as defined in the Options struct.
@@ -141,10 +213,6 @@ impl Config {
         r_parent_dir.push(GITIGNORE_REPO_CACHE_SUBDIR);
 
         Config {
-            core: CoreConfig {
-                // Sort out duration since error???
-                last_run: now - Duration::new(0, 500),
-            },
             repo: RepoConfig {
                 repo_parent_dir: r_parent_dir.into_os_string().into_string().unwrap(),
                 repo_dets: vec![RepoDetails {
@@ -221,13 +289,13 @@ impl Config {
         }
 
         info!("Config file is empty, using default config values");
-        self.update_config_file(&mut config_file)?;
+        self.update_file(&mut config_file)?;
 
         Ok(self.clone())
     }
 
-    /// Updates the contents of the config file with the current ([`Config`]).
-    fn update_config_file(&self, config_file: &mut File) -> Result<(), Box<dyn Error>> {
+    /// Updates the contents of the config file with the current [`Config`].
+    fn update_file(&self, config_file: &mut File) -> Result<(), Box<dyn Error>> {
         config_file.write_all(toml::to_string(&self)?.as_bytes())?;
         debug!("Updated config file");
 
@@ -261,10 +329,13 @@ impl Options {
         debug!("Parsing command arguments & config file");
 
         let mut config_file_path = String::new();
+        let state_file_path: String;
 
         let mut default_config_file: PathBuf;
+        let mut state_file_pathbuf: PathBuf;
 
-        let app_config = Config::new();
+        let mut app_config = Config::new();
+        let mut app_state = State::new();
         let app_options: Options;
 
         let matches: ArgMatches;
@@ -340,22 +411,32 @@ impl Options {
             debug!("Using default config file path");
         }
 
+        state_file_pathbuf = dirs::cache_dir().expect("Error obtaining system's cache directory");
+        state_file_pathbuf.push(STATE_FILE_SPATH);
+        state_file_path = state_file_pathbuf.into_os_string().into_string().unwrap();
+
         /* // Create repo_path from repo_url
          * let re = Regex::new(URL_PREFIX_REGEX)
          *     .unwrap()
          *     .replace(default_gitignore_repo, ""); */
 
+        app_config = app_config
+            .parse(&config_file_path)
+            .map(|cfg| cfg)
+            .unwrap_or_else(|err| {
+                error!("Config parse error, using the default: {}", err);
+                app_config.clone()
+            });
+
+        app_state = app_state.parse()?;
+
         app_options = Options {
-            config: app_config
-                .parse(&config_file_path)
-                .map(|cfg| cfg)
-                .unwrap_or_else(|err| {
-                    error!("Config parse error, using the default: {}", err);
-                    app_config.clone()
-                }),
+            config: app_config,
+            state: app_state.clone(),
             operation: get_operation(&matches),
-            needs_update: check_staleness(&app_config.core.last_run)?,
+            needs_update: check_staleness(&app_state.last_run)?,
             config_path: config_file_path,
+            state_path: state_file_path,
             output_file: matches
                 .value_of("output")
                 .unwrap_or("gitignore")
@@ -383,21 +464,30 @@ impl Options {
         Ok(app_options)
     }
 
-    /// A wrapper function to allow saving a [`Config`] contained within an [`Options`] item.
-    pub fn save_config(self) -> Result<(), Box<dyn Error>> {
-        let mut config_file: File;
+    /// A wrapper function to allow saving a [`Config`]|[`State`] contained within an [`Options`] item.
+    pub fn save_file(&self, file_type: RuntimeFile) -> Result<(), Box<dyn Error>> {
+        let mut runtime_file: File;
+        let file_path: String;
 
-        debug!("Updating config in file path: {}", self.config_path);
+        file_path = match file_type {
+            RuntimeFile::StateFile => self.state_path.clone(),
+            RuntimeFile::ConfigFile => self.config_path.clone(),
+        };
 
-        config_file = OpenOptions::new()
+        debug!("Updating file in file path: {}", file_path);
+
+        runtime_file = OpenOptions::new()
             .read(true)
             .write(true)
             .create(true)
-            .open(self.config_path)?;
+            .open(file_path)?;
 
-        config_file.set_len(0)?;
+        runtime_file.set_len(0)?;
 
-        self.config.update_config_file(&mut config_file)?;
+        match file_type {
+            RuntimeFile::StateFile => self.state.update_file(&mut runtime_file)?,
+            RuntimeFile::ConfigFile => self.config.update_file(&mut runtime_file)?,
+        };
 
         Ok(())
     }
@@ -525,15 +615,10 @@ mod tests {
     fn config_create_test() {
         let config = Config::new();
 
-        let now = SystemTime::now();
-
         let mut parent_dir = dirs::cache_dir().unwrap();
         parent_dir.push("ignore/repos");
 
         let hardcode_config = Config {
-            core: CoreConfig {
-                last_run: now - Duration::new(0, 500),
-            },
             repo: RepoConfig {
                 repo_parent_dir: parent_dir.into_os_string().into_string().unwrap(),
                 repo_dets: vec![RepoDetails {

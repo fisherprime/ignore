@@ -10,7 +10,7 @@ extern crate git2;
  * Note: `super::` & `self::` are relative to the current module while `crate::` is relative to the
  * crate root.
  */
-use crate::config::{Operation, Options, RepoDetails};
+use crate::config::{Operation, Options, RepoDetails, RuntimeFile};
 
 // use git2::{Object, Repository};
 // use std::collections::hash_map::HashMap;
@@ -57,11 +57,13 @@ type TemplatePaths = BTreeMap<String, Vec<String>>;
 /// })
 /// ```
 pub fn run(mut app_options: Options) -> Result<(), Box<dyn Error>> {
+    let app_options_ref: &Options; 
+
     if app_options.needs_update {
         update_gitignore_repos(&app_options)?;
 
         if app_options.operation == Operation::UpdateRepo {
-            app_options.save_config()?;
+            app_options.save_file(RuntimeFile::ConfigFile)?;
             return Ok(());
         }
     }
@@ -73,7 +75,9 @@ pub fn run(mut app_options: Options) -> Result<(), Box<dyn Error>> {
         Operation::Else => info!("No operation specified, this shouldn't have happened"),
     }
 
-    app_options.save_config()?;
+    app_options_ref = &app_options;
+    app_options_ref.save_file(RuntimeFile::ConfigFile)?;
+    app_options_ref.save_file(RuntimeFile::StateFile)?;
 
     Ok(())
 }
@@ -140,8 +144,8 @@ fn generate_gitignore(app_options: &mut Options) -> Result<(), Box<dyn Error>> {
 
 /// Concatenates gitignore template files specified by the user.
 ///
-/// This function acts on [`TemplatePaths`] for the template arguments specified by a user.
-/// The filespaths listed in the [`TemplatePaths`] are then consolidated into a single file.
+/// This function acts on a [`TemplatePaths`] item for the template arguments specified by a user,
+/// consolidating the filespaths listed within the item.
 fn concatenate_templates(available_templates: TemplatePaths) -> Result<String, Box<dyn Error>> {
     let delimiter = "# ----";
 
@@ -252,12 +256,6 @@ fn parse_templates(app_options: &mut Options) -> Result<TemplatePaths, Box<dyn E
 
     let template_paths = generate_template_paths(app_options)?;
 
-    /* template_paths = match sort_template_paths(&template_paths) {
-     *     Some(sort) => sort,
-     *     None => panic!("Template file paths hash map not sorted"),
-     * };
-     * debug!("Sorted template hash: {:?}", template_paths); */
-
     for template in template_list {
         // If template exists
         if let Some(t_paths) = template_paths.get(&template) {
@@ -274,8 +272,8 @@ fn parse_templates(app_options: &mut Options) -> Result<TemplatePaths, Box<dyn E
 ///
 /// This function fetches and merges the latest HEAD for an existing git repository, cloning one if
 /// not locally cached.
-/// This operation will not update a repository if it hasn't reached staleness (as defined by the
-/// const REPO_UPDATE_LIMIT) & the update operation isn't desired by the user.
+/// This operation will not update a repository if it hasn't reached staleness (as defined by
+/// [`const REPO_UPDATE_LIMIT`]) & the update operation isn't desired by the user.
 ///
 /// REF: [github/nabijaczleweli](https://github.com/nabijaczleweli/cargo-update/blob/master/src/ops/mod.rs)
 fn update_gitignore_repos(app_options: &Options) -> Result<(), Box<dyn Error>> {
@@ -338,37 +336,9 @@ fn clone_repository(
     )?)
 }
 
-// Using a BTreeMap is faster.
-/* fn sort_template_paths(
- *     unsorted_map: &HashMap<String, Vec<String>>,
- * ) -> Option<HashMap<String, Vec<String>>> {
- *     debug!("Sorting template paths hash");
- *     // debug!("Unsorted map: {:?}", unsorted_map);
- *
- *     let mut key_vector: Vec<String>;
- *
- *     let mut sorted_map = HashMap::<String, Vec<String>>::new();
- *
- *     key_vector = unsorted_map.keys().cloned().collect();
- *     key_vector.sort_by(|a, b| a.to_lowercase().cmp(&b.to_lowercase()));
- *     debug!("Sorted keys: {:?}", key_vector);
- *
- *     for key in key_vector {
- *         let path = unsorted_map
- *             .get(&key)
- *             .expect("Error sorting template path B-tree map");
- *         debug!("{:?}", path);
- *         *sorted_map.entry(key).or_default() = path.clone();
- *     }
- *     debug!("Done sorting template paths hash");
- *     // debug!("Sorted map: {:?}", sorted_map);
- *
- *     Some(sorted_map)
- * } */
-
-/// Generates a [`TemplatePaths`] item (binary tree hash-map of gitignore template filepaths.
+/// Generates a [`TemplatePaths`] item.
 ///
-/// This function calls the update_template_paths function that updates the TemplatePaths hash-map.
+/// This function prepares a [`TemplatePaths`] variable and calls [`update_template_paths`] to update it.
 fn generate_template_paths(app_options: &mut Options) -> Result<TemplatePaths, Box<dyn Error>> {
     let mut template_paths = TemplatePaths::new();
 
@@ -394,7 +364,7 @@ fn generate_template_paths(app_options: &mut Options) -> Result<TemplatePaths, B
 /// Populates a [`TemplatePaths`] item with filepath entries.
 ///
 /// This function recurses on the contents of the cached gitignore template repositories, appending
-/// filepath entries to the [`TemplatePaths`] hash-map for all available templates.
+/// filepath entries to the passed [`TemplatePaths`] item for all available templates.
 fn update_template_paths(dir: &Path, template_paths: &mut TemplatePaths) -> io::Result<()> {
     debug!(
         "Updating template file paths, dir: {}",
@@ -438,7 +408,7 @@ fn update_template_paths(dir: &Path, template_paths: &mut TemplatePaths) -> io::
 
 /// Removes the filetype from a pathname.
 ///
-/// This function removes the filetype after the `.` from a file's basename.
+/// This function removes the filetype after the last `.` from a file's basename.
 fn remove_filetype(entry: DirEntry) -> Option<String> {
     // TODO: refine_filetype_removal, check for the existence of one, ...
     let t_filename = entry.file_name();
