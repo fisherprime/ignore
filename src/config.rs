@@ -29,6 +29,13 @@ const SECONDS_IN_DAY: u64 = 60 * 60 * 24;
 /// Set to 7 days.
 const REPO_UPDATE_LIMIT: u64 = SECONDS_IN_DAY * 7;
 
+/// Constant specifying the default gitignore template repo to use.
+const GITIGNORE_DEFAULT_REPO: &str = "https://github.com/github/gitignore";
+
+/// Constant specifying the cache subdirectory within the system's cache directory to store
+/// gitignore template repositories.
+const GITIGNORE_REPO_CACHE_SUBDIR: &str = "ignore/repos";
+
 /// Struct containing the runtime options parsed from a config file.
 #[derive(Deserialize, Serialize, PartialEq, Debug, Clone)]
 pub struct Config {
@@ -112,7 +119,7 @@ pub enum Operation {
 impl Config {
     /// Generates the default [`Config`].
     pub fn new() -> Config {
-        let default_gitignore_repo: String = "https://github.com/github/gitignore".to_string();
+        let default_gitignore_repo: String = GITIGNORE_DEFAULT_REPO.to_string();
         let r_path: String;
 
         let mut r_parent_dir: PathBuf;
@@ -131,7 +138,7 @@ impl Config {
         );
         // TODO: end of messy_repo_path.
         r_parent_dir = dirs::cache_dir().expect("Error obtaining system's cache directory");
-        r_parent_dir.push("ignore-ng/repos");
+        r_parent_dir.push(GITIGNORE_REPO_CACHE_SUBDIR);
 
         Config {
             core: CoreConfig {
@@ -165,7 +172,7 @@ impl Config {
 
         default_config_file =
             dirs::config_dir().expect("Error obtaining system's config directory");
-        default_config_file.push("ignore-ng/config.toml");
+        default_config_file.push("ignore/config.toml");
 
         /* match OpenOptions::new()
          *     .read(true)
@@ -263,7 +270,7 @@ impl Options {
         let matches: ArgMatches;
 
         // `env!("CARGO_PKG_VERSION")` replaced with `crate_version!`
-        matches = App::new("ignore-ng")
+        matches = App::new("ignore")
             .setting(AppSettings::ArgRequiredElseHelp)
             .version(crate_version!())
             .about("Generated .gitignore files")
@@ -284,7 +291,7 @@ impl Options {
             )
             .arg(
                 Arg::with_name("output")
-                .help("Specify output filename, defaults to: gitignore-ng.")
+                .help("Specify output filename, defaults to: gitignore.")
                 .short("o")
                 .long("output")
                 .value_name("FILE")
@@ -318,7 +325,7 @@ impl Options {
 
         default_config_file =
             dirs::config_dir().expect("Error obtaining system's config directory");
-        default_config_file.push("ignore-ng/config.toml");
+        default_config_file.push("ignore/config.toml");
 
         if let Some(path) = matches.value_of("config") {
             config_file_path = path.to_string();
@@ -351,7 +358,7 @@ impl Options {
             config_path: config_file_path,
             output_file: matches
                 .value_of("output")
-                .unwrap_or("gitignore-ng")
+                .unwrap_or("gitignore")
                 .to_string(),
             templates: match matches.values_of("template") {
                 Some(templates_vec) => {
@@ -521,7 +528,7 @@ mod tests {
         let now = SystemTime::now();
 
         let mut parent_dir = dirs::cache_dir().unwrap();
-        parent_dir.push("ignore-ng/repos");
+        parent_dir.push("ignore/repos");
 
         let hardcode_config = Config {
             core: CoreConfig {
@@ -532,7 +539,7 @@ mod tests {
                 repo_dets: vec![RepoDetails {
                     auto_update: false,
                     ignore: false,
-                    repo_url: "https://github.com/github/gitignore".to_string(),
+                    repo_url: GITIGNORE_DEFAULT_REPO.to_string(),
                     repo_path: "github/gitignore".to_string(),
                 }],
             },
@@ -547,7 +554,7 @@ mod tests {
         let mut config = Config::new();
 
         let mut config_path = dirs::config_dir().unwrap();
-        config_path.push("ignore-ng/config.toml");
+        config_path.push("ignore/config.toml");
 
         // Parse default config file, populating it with the default config if non-existent.
         config = config
