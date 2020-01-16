@@ -160,6 +160,10 @@ impl State {
 
         let mut state_file: File;
 
+        if !&state_file_path.exists() {
+            self.create_state_file(&state_file_path)?;
+        }
+
         state_file = OpenOptions::new()
             .read(true)
             .write(true)
@@ -179,6 +183,20 @@ impl State {
         info!("State file is empty");
 
         Ok(self.clone())
+    }
+
+    /// Creates a state file in the default location populated with the current [`Config`].
+    fn create_state_file(&self, state_file_path: &Path) -> Result<(), Box<dyn Error>> {
+        info!("Creating state file");
+
+        let state_dir = Path::new(&state_file_path).parent().unwrap();
+        if !state_dir.is_dir() {
+            DirBuilder::new().recursive(true).create(state_dir)?
+        }
+
+        File::create(state_file_path)?;
+
+        Ok(())
     }
 
     /// Updates the contents of the state file with the current [`State`].
@@ -242,28 +260,10 @@ impl Config {
             dirs::config_dir().expect("Error obtaining system's config directory");
         default_config_file.push("ignore/config.toml");
 
-        /* match OpenOptions::new()
-         *     .read(true)
-         *     .write(true)
-         *     .create(true)
-         *     .open(config_file_path)
-         * {
-         *     Ok(conf) => config_file = conf,
-         *     Err(err) => {
-         *         if err.kind() == ErrorKind::NotFound {
-         *             self.create_default_config_file(
-         *                 &default_config_file,
-         *                 &Path::new(config_file_path),
-         *             )?;
-         *         } else {
-         *             // panic!("Could not find config file: {:?}", err);
-         *             return Err(Box::new(err));
-         *         }
-         *     }
-         * }; */
-
-        if !Path::new(config_file_path).exists() {
-            self.create_default_config_file(&default_config_file, &Path::new(config_file_path))?;
+        if !Path::new(config_file_path).exists()
+            && Path::new(config_file_path).eq(&default_config_file)
+        {
+            self.create_default_config_file(&Path::new(config_file_path))?;
         }
 
         config_file = OpenOptions::new()
@@ -303,21 +303,15 @@ impl Config {
     }
 
     /// Creates a config file in the default location populated with the current [`Config`].
-    fn create_default_config_file(
-        &self,
-        default_config_file: &Path,
-        config_file_path: &Path,
-    ) -> Result<(), Box<dyn Error>> {
-        if config_file_path.eq(default_config_file) {
-            info!("Creating default config file");
+    fn create_default_config_file(&self, config_file_path: &Path) -> Result<(), Box<dyn Error>> {
+        info!("Creating default config file");
 
-            let conf_dir = Path::new(&config_file_path).parent().unwrap();
-            if !conf_dir.is_dir() {
-                DirBuilder::new().recursive(true).create(conf_dir)?
-            }
-
-            File::create(config_file_path)?;
+        let conf_dir = Path::new(&config_file_path).parent().unwrap();
+        if !conf_dir.is_dir() {
+            DirBuilder::new().recursive(true).create(conf_dir)?
         }
+
+        File::create(config_file_path)?;
 
         Ok(())
     }
@@ -481,7 +475,6 @@ impl Options {
             .write(true)
             .create(true)
             .open(file_path)?;
-
         runtime_file.set_len(0)?;
 
         match file_type {
