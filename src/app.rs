@@ -57,7 +57,7 @@ type TemplatePaths = BTreeMap<String, Vec<String>>;
 /// })
 /// ```
 pub fn run(mut app_options: Options) -> Result<(), Box<dyn Error>> {
-    let app_options_ref: &Options; 
+    let app_options_ref: &Options;
 
     if app_options.needs_update {
         update_gitignore_repos(&app_options)?;
@@ -250,17 +250,15 @@ fn list_templates(app_options: &mut Options) -> Result<(), Box<dyn Error>> {
 fn parse_templates(app_options: &mut Options) -> Result<TemplatePaths, Box<dyn Error>> {
     debug!("Parsing template options");
 
-    let mut available_templates = TemplatePaths::new();
-
     let template_list = app_options.templates.clone();
 
+    let mut available_templates = TemplatePaths::new();
     let template_paths = generate_template_paths(app_options)?;
 
     for template in template_list {
-        // If template exists
-        if let Some(t_paths) = template_paths.get(&template) {
+        template_paths.get(&template).map(|t_paths| {
             *available_templates.entry(template).or_default() = t_paths.to_vec();
-        }
+        });
     }
 
     debug!("Selected available template options");
@@ -293,20 +291,19 @@ fn update_gitignore_repos(app_options: &Options) -> Result<(), Box<dyn Error>> {
 
         match Repository::discover(&absolute_repo_path) {
             Ok(repo) => {
-                debug!("Repository is cached locally: {}", repo_det.repo_path);
-                repo.find_remote("origin")?.fetch(&["master"], None, None)?;
+                debug!(
+                    "Repository is cached locally, updating: {}",
+                    repo_det.repo_path
+                );
 
+                repo.find_remote("origin")?.fetch(&["master"], None, None)?;
                 let fetch_head = repo
                     .find_reference("FETCH_HEAD")?
                     .peel(git2::ObjectType::Any)?;
                 repo.reset(&fetch_head, git2::ResetType::Hard, Some(&mut checkout))?;
             }
             Err(_) => {
-                info!(
-                    "Repository not cached locally, cloning: {}",
-                    repo_det.repo_path
-                );
-
+                info!("Repository not cached locally: {}", repo_det.repo_path);
                 clone_repository(app_options, &repo_det)?;
             }
         };
@@ -322,7 +319,7 @@ fn clone_repository(
     app_options: &Options,
     repo_det: &RepoDetails,
 ) -> Result<Repository, Box<dyn Error>> {
-    info!("Cloning gitignore repo");
+    info!("Cloning gitignore repo: {}", repo_det.repo_path);
 
     let absolute_repo_path = absolute_repo_path!(app_options, repo_det);
 
@@ -366,23 +363,18 @@ fn generate_template_paths(app_options: &mut Options) -> Result<TemplatePaths, B
 /// This function recurses on the contents of the cached gitignore template repositories, appending
 /// filepath entries to the passed [`TemplatePaths`] item for all available templates.
 fn update_template_paths(dir: &Path, template_paths: &mut TemplatePaths) -> io::Result<()> {
-    debug!(
-        "Updating template file paths, dir: {}",
-        dir.as_os_str().to_str().unwrap()
-    );
+    debug!("Updating template file paths, dir: {}", dir.display());
 
     // Store template name & path in hashmap.
     for entry in fs::read_dir(dir)? {
         let entry = entry?;
-
-        let entry_path_string: String;
 
         if ignore_file(&entry) {
             continue;
         }
 
         let entry_path = entry.path();
-        entry_path_string = String::from(entry_path.clone().into_os_string().to_str().unwrap());
+        let entry_path_string = entry_path.clone().into_os_string().into_string().unwrap();
 
         if entry_path.is_dir() {
             update_template_paths(&entry_path, template_paths)?;
@@ -392,37 +384,26 @@ fn update_template_paths(dir: &Path, template_paths: &mut TemplatePaths) -> io::
         }
 
         let template = template_paths
-            .entry(remove_filetype(entry).unwrap())
+            .entry(remove_filetype(&entry.path()))
             .or_default();
 
         template.push(entry_path_string);
     }
 
-    debug!(
-        "Done updating template file paths, dir: {}",
-        dir.as_os_str().to_str().unwrap()
-    );
+    debug!("Done updating template file paths, dir: {}", dir.display());
 
     Ok(())
 }
 
 /// Removes the filetype from a pathname.
 ///
-/// This function removes the filetype after the last `.` from a file's basename.
-fn remove_filetype(entry: DirEntry) -> Option<String> {
-    // TODO: refine_filetype_removal, check for the existence of one, ...
-    let t_filename = entry.file_name();
-
-    #[allow(clippy::single_char_pattern)]
-    let t_filename_split = t_filename
-        .to_str()
+/// This function calls [`std::Path`] operations to return a filename without the extenstion.
+fn remove_filetype(path: &Path) -> String {
+    path.file_stem()
         .unwrap()
-        .split(".")
-        .collect::<Vec<&str>>();
-
-    Some(t_filename_split[0].to_string())
-
-    // TODO: end refine_filetype_removal.
+        .to_os_string()
+        .into_string()
+        .unwrap()
 }
 
 /// Checks whether a directory/file is hidden.

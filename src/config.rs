@@ -143,13 +143,13 @@ impl State {
     pub fn new() -> State {
         let now = SystemTime::now();
 
-        // HACK: Sort some duration_since error
+        // HACK: Sort a duration_since error
         State {
             last_run: now - Duration::new(0, 500),
         }
     }
 
-    /// Parses state file contents & generates a [`Config`] item.
+    /// Parses state file contents & generates a [`State`] item.
     pub fn parse(self) -> Result<State, Box<dyn Error>> {
         let mut state_file_path = dirs::cache_dir().unwrap();
         state_file_path.push(STATE_FILE_SPATH);
@@ -161,7 +161,7 @@ impl State {
         let mut state_file: File;
 
         if !&state_file_path.exists() {
-            self.create_state_file(&state_file_path)?;
+            create_file(&state_file_path)?;
         }
 
         state_file = OpenOptions::new()
@@ -185,20 +185,6 @@ impl State {
         Ok(self.clone())
     }
 
-    /// Creates a state file in the default location populated with the current [`Config`].
-    fn create_state_file(&self, state_file_path: &Path) -> Result<(), Box<dyn Error>> {
-        info!("Creating state file");
-
-        let state_dir = Path::new(&state_file_path).parent().unwrap();
-        if !state_dir.is_dir() {
-            DirBuilder::new().recursive(true).create(state_dir)?
-        }
-
-        File::create(state_file_path)?;
-
-        Ok(())
-    }
-
     /// Updates the contents of the state file with the current [`State`].
     fn update_file(&self, state_file: &mut File) -> Result<(), Box<dyn Error>> {
         state_file.write_all(toml::to_string(&self)?.as_bytes())?;
@@ -216,17 +202,25 @@ impl Config {
 
         let mut r_parent_dir: PathBuf;
 
-        // TODO: fix, messy_repo_path.
-        // Get repo_path as defined in the Options struct.
-        let gitignore_repo_split: Vec<&str> = default_gitignore_repo.split('/').collect();
-        let gitignore_split_len = gitignore_repo_split.len();
+        let gitignore_repo_path = Path::new(&default_gitignore_repo);
+        let mut gitignore_repo_components: Vec<_> = gitignore_repo_path
+            .components()
+            .map(|comp| comp.as_os_str())
+            .collect();
 
-        r_path = format!(
-            "{}/{}",
-            gitignore_repo_split[gitignore_split_len - 2],
-            gitignore_repo_split[gitignore_split_len - 1]
-        );
-        // TODO: end of messy_repo_path.
+        if gitignore_repo_components.len().lt(&2) {
+            r_path = format!(
+                "undefined/{}",
+                gitignore_repo_components.pop().unwrap().to_str().unwrap()
+            );
+        } else {
+            r_path = format!(
+                "{1}/{0}",
+                gitignore_repo_components.pop().unwrap().to_str().unwrap(),
+                gitignore_repo_components.pop().unwrap().to_str().unwrap()
+            );
+        }
+
         r_parent_dir = dirs::cache_dir().expect("Error obtaining system's cache directory");
         r_parent_dir.push(GITIGNORE_REPO_CACHE_SUBDIR);
 
@@ -263,7 +257,7 @@ impl Config {
         if !Path::new(config_file_path).exists()
             && Path::new(config_file_path).eq(&default_config_file)
         {
-            self.create_default_config_file(&Path::new(config_file_path))?;
+            create_file(&Path::new(config_file_path))?;
         }
 
         config_file = OpenOptions::new()
@@ -298,20 +292,6 @@ impl Config {
     fn update_file(&self, config_file: &mut File) -> Result<(), Box<dyn Error>> {
         config_file.write_all(toml::to_string(&self)?.as_bytes())?;
         debug!("Updated config file");
-
-        Ok(())
-    }
-
-    /// Creates a config file in the default location populated with the current [`Config`].
-    fn create_default_config_file(&self, config_file_path: &Path) -> Result<(), Box<dyn Error>> {
-        info!("Creating default config file");
-
-        let conf_dir = Path::new(&config_file_path).parent().unwrap();
-        if !conf_dir.is_dir() {
-            DirBuilder::new().recursive(true).create(conf_dir)?
-        }
-
-        File::create(config_file_path)?;
 
         Ok(())
     }
@@ -436,16 +416,9 @@ impl Options {
                 .unwrap_or("gitignore")
                 .to_string(),
             templates: match matches.values_of("template") {
-                Some(templates_vec) => {
-                    let mut temp_string_vec: Vec<String> = Vec::new();
-                    let temp_str_vec = templates_vec.collect::<Vec<&str>>();
-
-                    for template in temp_str_vec {
-                        temp_string_vec.push(template.to_string());
-                    }
-
-                    temp_string_vec
-                }
+                Some(templates_arg) => templates_arg
+                    .map(|tmpl| tmpl.to_string())
+                    .collect::<Vec<String>>(),
                 None => ["".to_string()].to_vec(),
             },
             // template_paths: BTreeMap::<String, Vec<String>>::new(),
@@ -468,7 +441,7 @@ impl Options {
             RuntimeFile::ConfigFile => self.config_path.clone(),
         };
 
-        debug!("Updating file in file path: {}", file_path);
+        debug!("Updating file: {}", file_path);
 
         runtime_file = OpenOptions::new()
             .read(true)
@@ -484,6 +457,23 @@ impl Options {
 
         Ok(())
     }
+}
+
+/// Creates a file defined by a filepath.
+///
+/// This function builds a filepath's directory heirarchy (if necessary) then creates the file
+/// specified by the path.
+fn create_file(file_path: &Path) -> Result<(), Box<dyn Error>> {
+    info!("Creating file: {}", file_path.display());
+
+    let file_dir = Path::new(&file_path).parent().unwrap();
+    if !file_dir.is_dir() {
+        DirBuilder::new().recursive(true).create(file_dir)?
+    }
+
+    File::create(file_path)?;
+
+    Ok(())
 }
 
 /// Determines the operation specified in the user supplied arguments.
@@ -513,12 +503,12 @@ fn get_operation(matches: &ArgMatches) -> Operation {
 /// [`REPO_UPDATE_LIMIT`]; otherwise, false.
 fn check_staleness(last_update: &SystemTime) -> Result<bool, Box<dyn Error>> {
     let now = SystemTime::now();
-    let update_test = {
+    let repos_are_stale = {
         ((now.duration_since(*last_update)? > Duration::new(REPO_UPDATE_LIMIT, 0))
             || (now.duration_since(*last_update)? == Duration::new(0, 500)))
     };
 
-    if update_test {
+    if repos_are_stale {
         return Ok(true);
     }
 
@@ -554,30 +544,33 @@ fn setup_logger(matches: &ArgMatches) -> Result<(), fern::InitError> {
         }
     };
 
-    if verbose {
-        fern::Dispatch::new()
-            .format(|out, message, record| {
-                out.finish(format_args!(
-                    "{}[{}][{}] {}",
-                    chrono::Local::now().format("[%Y-%m-%dT%H:%M:%S%z]"),
-                    record.target(),
-                    record.level(),
-                    message
-                ))
-            })
-            .level(log_max_level)
-            .chain(std::io::stdout())
-            // .chain(fern::log_file("output.log")?)
-            .apply()?;
-    } else {
-        fern::Dispatch::new()
-            .format(|out, message, record| {
-                out.finish(format_args!("[{}] {}", record.level(), message))
-            })
-            .level(log_max_level)
-            .chain(std::io::stdout())
-            // .chain(fern::log_file("output.log")?)
-            .apply()?;
+    match verbose {
+        true => {
+            fern::Dispatch::new()
+                .format(|out, message, record| {
+                    out.finish(format_args!(
+                        "{}[{}][{}] {}",
+                        chrono::Local::now().format("[%Y-%m-%dT%H:%M:%S%z]"),
+                        record.target(),
+                        record.level(),
+                        message
+                    ))
+                })
+                .level(log_max_level)
+                .chain(std::io::stdout())
+                // .chain(fern::log_file("output.log")?)
+                .apply()?;
+        }
+        false => {
+            fern::Dispatch::new()
+                .format(|out, message, record| {
+                    out.finish(format_args!("[{}] {}", record.level(), message))
+                })
+                .level(log_max_level)
+                .chain(std::io::stdout())
+                // .chain(fern::log_file("output.log")?)
+                .apply()?;
+        }
     }
 
     debug!("Done setting up logger");

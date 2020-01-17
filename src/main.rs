@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 
+#![forbid(unsafe_code)]
 #![warn(missing_docs)]
 // NOTE: unneeded, this is not a library.
 // #![warn(missing_doc_code_examples)]
