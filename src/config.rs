@@ -140,13 +140,8 @@ pub enum RuntimeFile {
 
 impl State {
     /// Generates the default [`State`].
-    pub fn new() -> State {
-        let now = SystemTime::now();
-
-        // HACK: Sort a duration_since error
-        State {
-            last_run: now - Duration::new(0, 500),
-        }
+    pub fn new(now: SystemTime) -> State {
+        State { last_run: now }
     }
 
     /// Parses state file contents & generates a [`State`] item.
@@ -302,6 +297,8 @@ impl Options {
     pub fn parse() -> Result<Options, Box<dyn Error>> {
         debug!("Parsing command arguments & config file");
 
+        let now = SystemTime::now();
+
         let mut config_file_path = String::new();
         let state_file_path: String;
 
@@ -408,7 +405,7 @@ impl Options {
             config: app_config,
             state: app_state.clone(),
             operation: get_operation(&matches),
-            needs_update: check_staleness(&app_state.last_run)?,
+            needs_update: check_staleness(&app_state.last_run, &now)?,
             config_path: config_file_path,
             state_path: state_file_path,
             output_file: matches
@@ -499,20 +496,17 @@ fn get_operation(matches: &ArgMatches) -> Operation {
 /// Checks for staleness of the cached gitignore template repositories.
 ///
 /// This function compares the current [`SystemTime`] to the last repository update time.
-/// This function returns true (staleness state) should the difference be greater than
-/// [`REPO_UPDATE_LIMIT`]; otherwise, false.
-fn check_staleness(last_update: &SystemTime) -> Result<bool, Box<dyn Error>> {
-    let now = SystemTime::now();
+/// This function returns true (staleness state) should the time difference between the last
+/// repo update & current run be greater than [`REPO_UPDATE_LIMIT`] or this be the first execution
+/// of the binary.
+/// Otherwise, this function returns false.
+fn check_staleness(last_update: &SystemTime, now: &SystemTime) -> Result<bool, Box<dyn Error>> {
     let repos_are_stale = {
         ((now.duration_since(*last_update)? > Duration::new(REPO_UPDATE_LIMIT, 0))
-            || (now.duration_since(*last_update)? == Duration::new(0, 500)))
+            || (now.eq(last_update)))
     };
 
-    if repos_are_stale {
-        return Ok(true);
-    }
-
-    Ok(false)
+    Ok(repos_are_stale)
 }
 
 // REF: https://mathiasbynens.be/demo/url-regex
