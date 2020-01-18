@@ -57,8 +57,6 @@ type TemplatePaths = BTreeMap<String, Vec<String>>;
 /// })
 /// ```
 pub fn run(mut app_options: Options) -> Result<(), Box<dyn Error>> {
-    let app_options_ref: &Options;
-
     if app_options.needs_update {
         update_gitignore_repos(&app_options)?;
 
@@ -75,9 +73,8 @@ pub fn run(mut app_options: Options) -> Result<(), Box<dyn Error>> {
         Operation::Else => info!("No operation specified, this shouldn't have happened"),
     }
 
-    app_options_ref = &app_options;
-    app_options_ref.save_file(RuntimeFile::ConfigFile)?;
-    app_options_ref.save_file(RuntimeFile::StateFile)?;
+    &app_options.save_file(RuntimeFile::ConfigFile)?;
+    &app_options.save_file(RuntimeFile::StateFile)?;
 
     Ok(())
 }
