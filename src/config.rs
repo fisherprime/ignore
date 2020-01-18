@@ -309,59 +309,9 @@ impl Options {
         let mut app_state = State::new(now.clone());
         let app_options: Options;
 
-        let matches: ArgMatches;
+        let mut matches = ArgMatches::new();
 
-        // `env!("CARGO_PKG_VERSION")` replaced with `crate_version!`
-        matches = App::new("ignore")
-            .setting(AppSettings::ArgRequiredElseHelp)
-            .version(crate_version!())
-            .about("Generated .gitignore files")
-            .author("fisherprime")
-            .arg(
-                Arg::with_name("config")
-                .help("Specify alternative config file to use.")
-                .short("c")
-                .long("config")
-                .value_name("FILE")
-                .takes_value(true)
-            )
-            .arg(
-                Arg::with_name("list")
-                .help("List all available languages, tools & projects.")
-                .short("l")
-                .long("list")
-            )
-            .arg(
-                Arg::with_name("output")
-                .help("Specify output filename, defaults to: gitignore.")
-                .short("o")
-                .long("output")
-                .value_name("FILE")
-                .takes_value(true)
-            )
-            .arg(
-                Arg::with_name("template")
-                .help("Case sensitive specification of language(s), tool(s) and/or project template(s) to use in generating .gitignore.")
-                .short("t")
-                .long("templates")
-                .value_name("TEMPLATE")
-                .takes_value(true)
-                .multiple(true)
-            )
-            .arg(
-                Arg::with_name("update")
-                .help("Manually update the gitignore template repo(s)")
-                .short("u").long("update")
-            )
-            .arg(
-                Arg::with_name("verbosity")
-                .help("Set the level of verbosity for logs: -v, -vv.")
-                .short("v")
-                .long("verbose")
-                .multiple(true)
-            )
-            .get_matches();
-        debug!("Parsed command flags");
+        setup_clap(&mut matches);
 
         setup_logger(&matches)?;
 
@@ -455,6 +405,64 @@ impl Options {
 
         Ok(())
     }
+}
+
+/// Configures [`clap`].
+///
+/// This function configures clap then calls [`App::get_matches`] on the result to yield an
+/// [`ArgMatches`] item.
+fn setup_clap(matches: &mut ArgMatches) {
+    // `env!("CARGO_PKG_VERSION")` replaced with `crate_version!`
+    *matches = App::new("ignore")
+            .setting(AppSettings::ArgRequiredElseHelp)
+            .version(crate_version!())
+            .about("Generated .gitignore files")
+            .author("fisherprime")
+            .arg(
+                Arg::with_name("config")
+                .help("Specify alternative config file to use.")
+                .short("c")
+                .long("config")
+                .value_name("FILE")
+                .takes_value(true)
+            )
+            .arg(
+                Arg::with_name("list")
+                .help("List all available languages, tools & projects.")
+                .short("l")
+                .long("list")
+            )
+            .arg(
+                Arg::with_name("output")
+                .help("Specify output filename, defaults to: gitignore.")
+                .short("o")
+                .long("output")
+                .value_name("FILE")
+                .takes_value(true)
+            )
+            .arg(
+                Arg::with_name("template")
+                .help("Case sensitive specification of language(s), tool(s) and/or project template(s) to use in generating .gitignore.")
+                .short("t")
+                .long("templates")
+                .value_name("TEMPLATE")
+                .takes_value(true)
+                .multiple(true)
+            )
+            .arg(
+                Arg::with_name("update")
+                .help("Manually update the gitignore template repo(s)")
+                .short("u").long("update")
+            )
+            .arg(
+                Arg::with_name("verbosity")
+                .help("Set the level of verbosity for logs: -v, -vv.")
+                .short("v")
+                .long("verbose")
+                .multiple(true)
+            )
+            .get_matches();
+    debug!("Parsed command flags");
 }
 
 /// Creates a file defined by a filepath.
