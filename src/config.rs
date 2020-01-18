@@ -428,7 +428,8 @@ impl Options {
         Ok(app_options)
     }
 
-    /// A wrapper function to allow saving a [`Config`]|[`State`] contained within an [`Options`] item.
+    /// A wrapper function to allow saving a [`Config`] or [`State`] item contained within an
+    /// [`Options`] item.
     pub fn save_file(&self, file_type: RuntimeFile) -> Result<(), Box<dyn Error>> {
         let mut runtime_file: File;
         let file_path: String;
@@ -518,8 +519,9 @@ fn check_staleness(last_update: &SystemTime, now: &SystemTime) -> Result<bool, B
 ///
 /// This function configures the logger to output log messages using the ISO date format with
 /// verbosity levels specified by the user arguments (within [`ArgMatches`]).
-/// The arguments set the output verbosity for this crate to a maximum log level of either: Info,
-/// Debug, Trace level entries of none altogether.
+/// The arguments set the output verbosity for this crate to a maximum log level of either:
+/// [`log::LevelFilter::Info`], [`log::LevelFilter::Debug`], [`log::LevelFilter::Trace`],
+/// [`log::LevelFilter::Off`].
 fn setup_logger(matches: &ArgMatches) -> Result<(), fern::InitError> {
     debug!("Setting up logger");
 

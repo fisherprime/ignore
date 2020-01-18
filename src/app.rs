@@ -397,7 +397,7 @@ fn update_template_paths(dir: &Path, template_paths: &mut TemplatePaths) -> io::
 
 /// Removes the filetype from a pathname.
 ///
-/// This function calls [`std::Path`] operations to return a filename without the extenstion.
+/// This function calls [`std::path::Path`] operations to return a filename without the extenstion.
 fn remove_filetype(path: &Path) -> String {
     path.file_stem()
         .unwrap()
