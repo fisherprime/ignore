@@ -306,7 +306,7 @@ impl Options {
         let mut state_file_pathbuf: PathBuf;
 
         let mut app_config = Config::new();
-        let mut app_state = State::new();
+        let mut app_state = State::new(now.clone());
         let app_options: Options;
 
         let matches: ArgMatches;
