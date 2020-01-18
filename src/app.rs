@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-//! The app module defines elements that perform the user-availed tasks.
+//! The `app` module defines elements that perform the user-availed tasks.
 
 extern crate git2;
 
@@ -33,13 +33,13 @@ macro_rules! absolute_repo_path {
     };
 }
 
-/// Binary tree hash-map alias for simplicity.
+/// `Binary tree hash-map` alias for simplicity.
 type TemplatePaths = BTreeMap<String, Vec<String>>;
 
-/// Handles the execution of ignore's functions.
+/// Handles the execution of `ignore`'s functions.
 ///
-/// Using the parsed runtime config [`Options`], runs a task specified by ignore's arguments then
-/// overwrites the config file.
+/// Using the parsed [`Options`], this function runs a task specified by the user in `ignore`'s
+/// arguments then updates the config file.
 /// This function returns an error to the calling function on occurrence.
 ///
 /// # Examples
@@ -79,11 +79,10 @@ pub fn run(mut app_options: Options) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-/// Consolidates locally cached gitignore template files.
+/// Consolidates locally cached .gitignore template files.
 ///
-/// This function calls [`parse_templates`] (template argument parsing) then
-/// [`concatenate_templates`] (template consolidation) for the user defined gitignore template
-/// arguments, yielding a consolidated gitignore file.
+/// This function calls [`parse_templates`] then [`concatenate_templates`]  for the user defined
+/// .gitignore template arguments, yielding a consolidated .gitignore file.
 ///
 /// # Examples
 ///
@@ -122,7 +121,7 @@ fn generate_gitignore(app_options: &mut Options) -> Result<(), Box<dyn Error>> {
             .write(true)
             .create(true)
             .open(&app_options.output_file)?;
-        debug!("Opened and/or created gitignore consolidation file");
+        debug!("Opened gitignore template consolidation file");
 
         consolidation_file.set_len(0)?;
         consolidation_file.write_all(consolidation_string.as_bytes())?;
@@ -132,14 +131,14 @@ fn generate_gitignore(app_options: &mut Options) -> Result<(), Box<dyn Error>> {
     }
 
     warn!(
-        "Specified template(s) could not be located (names are case sensitive): {:?}",
+        "A specified template could not be located (names are case sensitive): {:?}",
         app_options.templates
     );
 
     Ok(())
 }
 
-/// Concatenates gitignore template files specified by the user.
+/// Concatenates .gitignore template files specified by the user.
 ///
 /// This function acts on a [`TemplatePaths`] item for the template arguments specified by a user,
 /// consolidating the filespaths listed within the item.
@@ -208,7 +207,7 @@ fn concatenate_templates(available_templates: TemplatePaths) -> Result<String, B
     Ok(consolidation_string)
 }
 
-/// Lists the names of projects, tools, languages, ... with cached gitignore templates.
+/// Lists the names of projects, tools, languages, ... with cached .gitignore templates.
 fn list_templates(app_options: &mut Options) -> Result<(), Box<dyn Error>> {
     info!("Listing available templates");
 
@@ -238,11 +237,11 @@ fn list_templates(app_options: &mut Options) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-/// Generates [`TemplatePaths`] for the available gitignore template arguments supplied by a user.
+/// Generates [`TemplatePaths`] for the available .gitignore template arguments supplied by a user.
 ///
-/// This function generates a [`TemplatePaths`] item for the available gitignore template files
+/// This function generates a [`TemplatePaths`] item for the available .gitignore template files
 /// desired by a user.
-/// Using the output of [`generate_template_paths`], the [`TemplatePaths`] is filtered to include
+/// Using the output of [`generate_template_paths`], the [`TemplatePaths`] is filtered to contain
 /// entries explicitly requested by the user.
 fn parse_templates(app_options: &mut Options) -> Result<TemplatePaths, Box<dyn Error>> {
     debug!("Parsing template options");
@@ -263,9 +262,9 @@ fn parse_templates(app_options: &mut Options) -> Result<TemplatePaths, Box<dyn E
     Ok(available_templates)
 }
 
-/// Updates the cached gitignore template repositories (git only).
+/// Updates the cached .gitignore template repositories (git only).
 ///
-/// This function fetches and merges the latest HEAD for an existing git repository, cloning one if
+/// This function fetches and merges the latest `HEAD` for an existing git repository, cloning one if
 /// not locally cached.
 /// This operation will not update a repository if it hasn't reached staleness (as defined by
 /// [`const REPO_UPDATE_LIMIT`]) & the update operation isn't desired by the user.
@@ -332,7 +331,8 @@ fn clone_repository(
 
 /// Generates a [`TemplatePaths`] item.
 ///
-/// This function prepares a [`TemplatePaths`] variable and calls [`update_template_paths`] to update it.
+/// This function prepares a [`TemplatePaths`] variable then calls [`update_template_paths`] to
+/// update it.
 fn generate_template_paths(app_options: &mut Options) -> Result<TemplatePaths, Box<dyn Error>> {
     let mut template_paths = TemplatePaths::new();
 
@@ -357,8 +357,8 @@ fn generate_template_paths(app_options: &mut Options) -> Result<TemplatePaths, B
 
 /// Populates a [`TemplatePaths`] item with filepath entries.
 ///
-/// This function recurses on the contents of the cached gitignore template repositories, appending
-/// filepath entries to the passed [`TemplatePaths`] item for all available templates.
+/// This function recurses on the contents of the cached .gitignore template repositories,
+/// appending filepath entries to the passed [`TemplatePaths`] item for all available templates.
 fn update_template_paths(dir: &Path, template_paths: &mut TemplatePaths) -> io::Result<()> {
     debug!("Updating template file paths, dir: {}", dir.display());
 
@@ -394,7 +394,7 @@ fn update_template_paths(dir: &Path, template_paths: &mut TemplatePaths) -> io::
 
 /// Removes the filetype from a pathname.
 ///
-/// This function calls [`std::path::Path`] operations to return a filename without the extenstion.
+/// This function calls [`std::path::Path`] operations to return a filename without the extension.
 fn remove_filetype(path: &Path) -> String {
     path.file_stem()
         .unwrap()

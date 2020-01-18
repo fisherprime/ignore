@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-//! The config module defines elements necessary for the setup and configuration of the runtime
+//! The `config` module defines elements necessary for the setup and configuration of the runtime
 //! environment.
 
 extern crate chrono;
@@ -26,14 +26,13 @@ const SECONDS_IN_DAY: u64 = 60 * 60 * 24;
 
 /// Constant specifying the time to consider a repository's contents as state as [`u64`] (unsigned
 /// 64-bit integer).
-/// Set to 7 days.
 const REPO_UPDATE_LIMIT: u64 = SECONDS_IN_DAY * 7;
 
-/// Constant specifying the default gitignore template repo to use.
+/// Constant specifying the default .gitignore template repo to use.
 const GITIGNORE_DEFAULT_REPO: &str = "https://github.com/github/gitignore";
 
 /// Constant specifying the cache subdirectory within the system's cache directory to store
-/// gitignore template repositories.
+/// .gitignore template repositories.
 const GITIGNORE_REPO_CACHE_SUBDIR: &str = "ignore/repos";
 
 /// Constant specifying the location of the last run state file from some parent directory (i.e.
@@ -61,7 +60,8 @@ pub struct Config {
  * pub struct CoreConfig {
  * } */
 
-/// Struct containing the config file's common & array of repository specific runtime options.
+/// Struct containing the config file's common repository options and an array of repository
+/// specific runtime options.
 #[derive(Deserialize, Serialize, PartialEq, Debug, Clone)]
 pub struct RepoConfig {
     /// Directory containing gitignore repositories.
@@ -80,10 +80,10 @@ pub struct RepoDetails {
     /// Choice for ignoring repository usage for any task.
     pub ignore: bool,
 
-    /// Relative path (to repo_parent_dir) of gitignore template repo to use.
+    /// Relative path (to repo_parent_dir) of .gitignore template repo to use.
     pub repo_path: String,
 
-    /// URL of git repository containing gitignore templates.
+    /// URL of git repository containing .gitignore templates.
     pub repo_url: String,
 }
 
@@ -99,7 +99,7 @@ pub struct Options {
     /// Exclusive operation specified by user.
     pub operation: Operation,
 
-    /// Option used to auto-update cached gitignore tempalte repositories.
+    /// Option used to auto-update cached .gitignore tempalate repositories.
     pub needs_update: bool,
 
     /// Path to configuration file.
@@ -108,21 +108,21 @@ pub struct Options {
     /// Path to last runtime state file.
     pub state_path: String,
 
-    /// Path to output generated gitignore.
+    /// Path to output generated .gitignore.
     pub output_file: String,
 
-    /// List of templates user desires to use in gitignore generation.
+    /// List of templates user desires to use in .gitignore generation.
     pub templates: Vec<String>,
 }
 
-/// Enum containing exclusive operations that can be performed.
+/// `Enum` containing exclusive operations that can be performed.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Operation {
     /// Option to list available templates.
     ListTemplates,
     /// Option to update repository.
     UpdateRepo,
-    /// Option to generate gitignore file.
+    /// Option to generate .gitignore file.
     GenerateGitignore,
     /* /// Option to skip running any operation.
      * Skip, */
@@ -130,7 +130,7 @@ pub enum Operation {
     Else,
 }
 
-/// Enum containing runtime related filetypes.
+/// `Enum` containing runtime related filetypes.
 pub enum RuntimeFile {
     /// Option to update the config file.
     ConfigFile,
@@ -409,7 +409,7 @@ impl Options {
 
 /// Configures [`clap`].
 ///
-/// This function configures clap then calls [`App::get_matches`] on the result to yield an
+/// This function configures [`clap`] then calls [`App::get_matches`] on the result to yield an
 /// [`ArgMatches`] item.
 fn setup_clap(matches: &mut ArgMatches) {
     // `env!("CARGO_PKG_VERSION")` replaced with `crate_version!`
@@ -467,7 +467,7 @@ fn setup_clap(matches: &mut ArgMatches) {
 
 /// Creates a file defined by a filepath.
 ///
-/// This function builds a filepath's directory heirarchy (if necessary) then creates the file
+/// This function builds a filepath's directory hierarchy (if necessary) then creates the file
 /// specified by the path.
 fn create_file(file_path: &Path) -> Result<(), Box<dyn Error>> {
     info!("Creating file: {}", file_path.display());
@@ -502,13 +502,13 @@ fn get_operation(matches: &ArgMatches) -> Operation {
     Operation::Else
 }
 
-/// Checks for staleness of the cached gitignore template repositories.
+/// Checks for staleness of the cached .gitignore template repositories.
 ///
 /// This function compares the current [`SystemTime`] to the last repository update time.
-/// This function returns true (staleness state) should the time difference between the last
+/// This function returns `true` (staleness state) should the time difference between the last
 /// repo update & current run be greater than [`REPO_UPDATE_LIMIT`] or this be the first execution
 /// of the binary.
-/// Otherwise, this function returns false.
+/// Otherwise, this function returns` false`.
 fn check_staleness(last_update: &SystemTime, now: &SystemTime) -> Result<bool, Box<dyn Error>> {
     let repos_are_stale = {
         ((now.duration_since(*last_update)? > Duration::new(REPO_UPDATE_LIMIT, 0))
@@ -525,8 +525,8 @@ fn check_staleness(last_update: &SystemTime, now: &SystemTime) -> Result<bool, B
 
 /// Configures the [`fern`] logger.
 ///
-/// This function configures the logger to output log messages using the ISO date format with
-/// verbosity levels specified by the user arguments (within [`ArgMatches`]).
+/// This function configures the logger to output log messages using the `ISO` date format and
+/// verbosity levels specified by the verbosity arguments (within [`ArgMatches`]).
 /// The arguments set the output verbosity for this crate to a maximum log level of either:
 /// [`log::LevelFilter::Info`], [`log::LevelFilter::Debug`], [`log::LevelFilter::Trace`],
 /// [`log::LevelFilter::Off`].
@@ -587,7 +587,7 @@ mod tests {
     use super::*;
 
     /**
-     * Assert correctness of the default runtime options, includes the config
+     * Assert correctness of the default runtime options, includes the config.
      * TODO: add necessary fields
      */
     /*     #[test]
@@ -601,7 +601,7 @@ mod tests {
      *     } */
 
     #[test]
-    /// Assert correctness of the default config options
+    /// Assert correctness of the default config options.
     fn config_create_test() {
         let config = Config::new();
 

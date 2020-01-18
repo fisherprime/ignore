@@ -5,9 +5,9 @@
 // NOTE: unneeded, this is not a library.
 // #![warn(missing_doc_code_examples)]
 
-//! The ignore crate generates gitignore files.
+//! `ignore` is a collection of methods and items used to generate `.gitignore` files.
 //!
-//! This crate consolidates locally cached gitignore templates into a gitignore file.
+//! This crate consolidates locally cached `.gitignore` templates into a `.gitignore` file.
 
 // Loading macros must be done at the crate root.
 #[macro_use]
@@ -22,10 +22,9 @@ mod config;
 use app::run;
 use config::Options;
 
-/// This is the entry point for the crate's binary.
+/// This is the entry point for `ignore`'s binary.
 ///
-/// This function initiates the setting up of the running environment then calls the function to
-/// run the underlying logic.
+/// This function initiates the setting up of the running environment using [`Options::parse`] then calls [`run`].
 fn main() {
     Options::parse()
         .map(|app_options| {
