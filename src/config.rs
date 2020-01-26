@@ -511,8 +511,8 @@ fn get_operation(matches: &ArgMatches) -> Operation {
 /// Otherwise, this function returns` false`.
 fn check_staleness(last_update: &SystemTime, now: &SystemTime) -> Result<bool, Box<dyn Error>> {
     let repos_are_stale = {
-        ((now.duration_since(*last_update)? > Duration::new(REPO_UPDATE_LIMIT, 0))
-            || (now.eq(last_update)))
+        (now.duration_since(*last_update)? > Duration::new(REPO_UPDATE_LIMIT, 0))
+            || now.eq(last_update)
     };
 
     Ok(repos_are_stale)
