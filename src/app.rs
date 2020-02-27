@@ -131,7 +131,7 @@ fn generate_gitignore(app_options: &mut Options) -> Result<(), Box<dyn Error>> {
     }
 
     warn!(
-        "A specified template could not be located (names are case sensitive): {:?}",
+        "Neither of the specified template(s) could not be located (names are case sensitive): {:?}",
         app_options.templates
     );
 
@@ -145,13 +145,13 @@ fn generate_gitignore(app_options: &mut Options) -> Result<(), Box<dyn Error>> {
 fn concatenate_templates(available_templates: TemplatePaths) -> Result<String, Box<dyn Error>> {
     let delimiter = "# ----";
 
+    let mut return_string = String::new();
     let mut consolidation_string = String::new();
+    let mut template_list = String::new();
 
     if available_templates.is_empty() {
         return Ok(consolidation_string);
     }
-
-    consolidation_string += "#\n# .gitignore\n#\n";
 
     // Iterate over template_paths, opening necessary file & concatenating them.
     for (template, file_paths) in available_templates {
@@ -187,6 +187,8 @@ fn concatenate_templates(available_templates: TemplatePaths) -> Result<String, B
             continue;
         }
 
+        template_list += &format!(" {}", template);
+
         template_vec.sort();
         template_vec.dedup();
 
@@ -204,7 +206,11 @@ fn concatenate_templates(available_templates: TemplatePaths) -> Result<String, B
         consolidation_string += template_string.as_str();
     }
 
-    Ok(consolidation_string)
+    return_string += "#\n# .gitignore\n#\n\n";
+    return_string += &format!("# Templates used:{}\n", template_list);
+    return_string += &format!("{}", consolidation_string);
+
+    Ok(return_string)
 }
 
 /// Lists the names of projects, tools, languages, ... with cached .gitignore templates.
