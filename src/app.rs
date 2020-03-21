@@ -103,8 +103,6 @@ pub fn run(mut app_options: Options) -> Result<(), Box<dyn Error>> {
 fn generate_gitignore(app_options: &mut Options) -> Result<(), Box<dyn Error>> {
     info!("Generating gitignore");
 
-    let mut consolidation_file: File;
-
     let consolidation_string: String;
 
     let available_templates = parse_templates(app_options)?;
@@ -116,7 +114,7 @@ fn generate_gitignore(app_options: &mut Options) -> Result<(), Box<dyn Error>> {
     };
 
     if result {
-        consolidation_file = OpenOptions::new()
+        let mut consolidation_file = OpenOptions::new()
             .read(true)
             .write(true)
             .create(true)
@@ -145,8 +143,8 @@ fn generate_gitignore(app_options: &mut Options) -> Result<(), Box<dyn Error>> {
 fn concatenate_templates(available_templates: TemplatePaths) -> Result<String, Box<dyn Error>> {
     let delimiter = "# ----";
 
-    let mut return_string = String::new();
     let mut consolidation_string = String::new();
+    let mut return_string = String::new();
     let mut template_list = String::new();
 
     if available_templates.is_empty() {
@@ -187,7 +185,7 @@ fn concatenate_templates(available_templates: TemplatePaths) -> Result<String, B
             continue;
         }
 
-        template_list += &format!(" {}", template);
+        template_list.push_str(&format!(" {}", template));
 
         template_vec.sort();
         template_vec.dedup();
@@ -195,20 +193,20 @@ fn concatenate_templates(available_templates: TemplatePaths) -> Result<String, B
         if template_vec.len().gt(&1) {
             for temp_string in template_vec {
                 // TODO: replace with per file deduplication_logic.
-                template_string += &temp_string;
+                template_string.push_str(&temp_string);
                 // TODO: end replace with per file deduplication_logic.
             }
         } else {
-            template_string += &template_vec.pop().unwrap();
+            template_string.push_str(&template_vec.pop().unwrap());
         }
 
-        template_string += format!("{}\n", delimiter).as_str();
-        consolidation_string += template_string.as_str();
+        template_string.push_str(&format!("{}\n", delimiter));
+        consolidation_string.push_str(&template_string);
     }
 
-    return_string += "#\n# .gitignore\n#\n\n";
-    return_string += &format!("# Templates used:{}\n", template_list);
-    return_string += &format!("{}", consolidation_string);
+    return_string.push_str("#\n# .gitignore\n#\n\n");
+    return_string.push_str(&format!("# Templates used:{}\n", template_list));
+    return_string.push_str(&format!("{}", consolidation_string));
 
     Ok(return_string)
 }
@@ -221,11 +219,9 @@ fn list_templates(app_options: &mut Options) -> Result<(), Box<dyn Error>> {
 
     let mut list_string = String::new();
 
-    let mut key_vector: Vec<String>;
-
     let template_paths = generate_template_paths(app_options)?;
 
-    key_vector = template_paths.keys().cloned().collect();
+    let mut key_vector: Vec<String> = template_paths.keys().cloned().collect();
     key_vector.sort_by(|a, b| a.to_lowercase().cmp(&b.to_lowercase()));
 
     for (index, key) in key_vector.iter().enumerate() {

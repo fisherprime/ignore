@@ -140,31 +140,27 @@ pub enum RuntimeFile {
 
 impl State {
     /// Generates the default [`State`].
-    pub fn new(now: SystemTime) -> State {
-        State { last_run: now }
+    pub fn new(now: SystemTime) -> Self {
+        Self { last_run: now }
     }
 
     /// Parses state file contents & generates a [`State`] item.
     pub fn parse(self) -> Result<State, Box<dyn Error>> {
-        let mut state_file_path = dirs::cache_dir().unwrap();
-        state_file_path.push(STATE_FILE_SPATH);
-
-        let read_bytes: usize;
+        let mut state_file_pathbuf = dirs::cache_dir().unwrap();
+        state_file_pathbuf.push(STATE_FILE_SPATH);
 
         let mut state_string = String::new();
 
-        let mut state_file: File;
-
-        if !&state_file_path.exists() {
-            create_file(&state_file_path)?;
+        if !&state_file_pathbuf.exists() {
+            create_file(&state_file_pathbuf)?;
         }
 
-        state_file = OpenOptions::new()
+        let mut state_file = OpenOptions::new()
             .read(true)
             .write(true)
             .create(true)
-            .open(state_file_path)?;
-        read_bytes = state_file
+            .open(state_file_pathbuf)?;
+        let read_bytes = state_file
             .read_to_string(&mut state_string)
             .unwrap_or_else(|_| 0);
 
@@ -191,7 +187,7 @@ impl State {
 
 impl Config {
     /// Generates the default [`Config`].
-    pub fn new() -> Config {
+    pub fn new() -> Self {
         let default_gitignore_repo: String = GITIGNORE_DEFAULT_REPO.to_string();
         let r_path: String;
 
@@ -219,7 +215,7 @@ impl Config {
         r_parent_dir = dirs::cache_dir().expect("Error obtaining system's cache directory");
         r_parent_dir.push(GITIGNORE_REPO_CACHE_SUBDIR);
 
-        Config {
+        Self {
             repo: RepoConfig {
                 repo_parent_dir: r_parent_dir.into_os_string().into_string().unwrap(),
                 repo_dets: vec![RepoDetails {
@@ -237,30 +233,14 @@ impl Config {
     fn parse(&self, config_file_path: &str) -> Result<Config, Box<dyn Error>> {
         debug!("Parsing config file");
 
-        let read_bytes: usize;
-
         let mut config_string = String::new();
 
-        let mut default_config_file: PathBuf;
-
-        let mut config_file: File;
-
-        default_config_file =
-            dirs::config_dir().expect("Error obtaining system's config directory");
-        default_config_file.push("ignore/config.toml");
-
-        if !Path::new(config_file_path).exists()
-            && Path::new(config_file_path).eq(&default_config_file)
-        {
-            create_file(&Path::new(config_file_path))?;
-        }
-
-        config_file = OpenOptions::new()
+        let mut config_file = OpenOptions::new()
             .read(true)
             .write(true)
             .create(true)
             .open(config_file_path)?;
-        read_bytes = config_file
+        let read_bytes = config_file
             .read_to_string(&mut config_string)
             .unwrap_or_else(|_| 0);
 
@@ -300,14 +280,9 @@ impl Options {
         let now = SystemTime::now();
 
         let mut config_file_path = String::new();
-        let state_file_path: String;
-
-        let mut default_config_file: PathBuf;
-        let mut state_file_pathbuf: PathBuf;
 
         let mut app_config = Config::new();
         let mut app_state = State::new(now.clone());
-        let app_options: Options;
 
         let mut matches = ArgMatches::new();
 
@@ -315,26 +290,36 @@ impl Options {
 
         setup_logger(&matches)?;
 
-        default_config_file =
+        let mut default_config_pathbuf =
             dirs::config_dir().expect("Error obtaining system's config directory");
-        default_config_file.push("ignore/config.toml");
+        default_config_pathbuf.push("ignore/config.toml");
 
         if let Some(path) = matches.value_of("config") {
-            config_file_path = path.to_string();
-            debug!("Using user supplied config file path");
+            if Path::new(path).exists() {
+                config_file_path = path.to_owned();
+                debug!("Using user supplied config file path");
+            } else {
+                if let Some(cfg_path) = default_config_pathbuf.into_os_string().to_str() {
+                    config_file_path = cfg_path.to_owned();
+                    debug!("Using default config file path");
+                }
+            }
         } else {
-            let def_cfg_os_str = default_config_file.into_os_string();
-
-            if let Some(cfg_str) = def_cfg_os_str.to_str() {
-                config_file_path = cfg_str.to_string();
+            if let Some(cfg_path) = default_config_pathbuf.into_os_string().to_str() {
+                config_file_path = cfg_path.to_owned();
             }
 
             debug!("Using default config file path");
         }
 
-        state_file_pathbuf = dirs::cache_dir().expect("Error obtaining system's cache directory");
+        if !Path::new(&config_file_path).exists() {
+            create_file(&Path::new(&config_file_path))?;
+        }
+
+        let mut state_file_pathbuf =
+            dirs::cache_dir().expect("Error obtaining system's cache directory");
         state_file_pathbuf.push(STATE_FILE_SPATH);
-        state_file_path = state_file_pathbuf.into_os_string().into_string().unwrap();
+        let state_file_path = state_file_pathbuf.into_os_string().into_string().unwrap();
 
         /* // Create repo_path from repo_url
          * let re = Regex::new(URL_PREFIX_REGEX)
@@ -351,7 +336,7 @@ impl Options {
 
         app_state = app_state.parse()?;
 
-        app_options = Options {
+        let app_options = Options {
             config: app_config,
             state: app_state.clone(),
             operation: get_operation(&matches),
@@ -381,17 +366,14 @@ impl Options {
     /// A wrapper function to allow saving a [`Config`] or [`State`] item contained within an
     /// [`Options`] item.
     pub fn save_file(&self, file_type: RuntimeFile) -> Result<(), Box<dyn Error>> {
-        let mut runtime_file: File;
-        let file_path: String;
-
-        file_path = match file_type {
+        let file_path = match file_type {
             RuntimeFile::StateFile => self.state_path.clone(),
             RuntimeFile::ConfigFile => self.config_path.clone(),
         };
 
         debug!("Updating file: {}", file_path);
 
-        runtime_file = OpenOptions::new()
+        let mut runtime_file = OpenOptions::new()
             .read(true)
             .write(true)
             .create(true)
@@ -416,7 +398,7 @@ fn setup_clap(matches: &mut ArgMatches) {
     *matches = App::new("ignore")
             .setting(AppSettings::ArgRequiredElseHelp)
             .version(crate_version!())
-            .about("Generated .gitignore files")
+            .about("Generates .gitignore files")
             .author("fisherprime")
             .arg(
                 Arg::with_name("config")
