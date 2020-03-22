@@ -2,8 +2,6 @@
 
 //! The `app` module defines elements that perform the user-availed tasks.
 
-extern crate git2;
-
 /* `self::`` doesn't work here.
  *
  * `super::` and `crate::` work.
@@ -167,7 +165,7 @@ fn concatenate_templates(available_templates: TemplatePaths) -> Result<String, B
                     let mut temp_string = String::new();
 
                     template_file.read_to_string(&mut temp_string)?;
-                    template_vec.push(temp_string.to_string());
+                    template_vec.push(temp_string.to_owned());
 
                     debug!(
                         "Appended {} content to {} template vector",
@@ -225,11 +223,10 @@ fn list_templates(app_options: &mut Options) -> Result<(), Box<dyn Error>> {
     key_vector.sort_by(|a, b| a.to_lowercase().cmp(&b.to_lowercase()));
 
     for (index, key) in key_vector.iter().enumerate() {
-        list_string += key;
-        list_string += " ";
+        list_string.push_str(&format!("{} ", key));
 
         if index % list_width == 0 {
-            list_string += "\n";
+            list_string.push_str("\n");
         }
     }
     println!("{}", list_string);

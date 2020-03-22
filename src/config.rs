@@ -6,7 +6,6 @@
 extern crate chrono;
 extern crate dirs;
 extern crate fern;
-extern crate serde;
 extern crate toml;
 
 // use std::collections::btree_map::BTreeMap;
@@ -188,7 +187,7 @@ impl State {
 impl Config {
     /// Generates the default [`Config`].
     pub fn new() -> Self {
-        let default_gitignore_repo: String = GITIGNORE_DEFAULT_REPO.to_string();
+        let default_gitignore_repo: String = GITIGNORE_DEFAULT_REPO.to_owned();
         let r_path: String;
 
         let mut r_parent_dir: PathBuf;
@@ -343,13 +342,10 @@ impl Options {
             needs_update: check_staleness(&app_state.last_run, &now)?,
             config_path: config_file_path,
             state_path: state_file_path,
-            output_file: matches
-                .value_of("output")
-                .unwrap_or("gitignore")
-                .to_string(),
+            output_file: matches.value_of("output").unwrap_or("gitignore").to_owned(),
             templates: match matches.values_of("template") {
                 Some(templates_arg) => templates_arg
-                    .map(|tmpl| tmpl.to_string())
+                    .map(|tmpl| tmpl.to_owned())
                     .collect::<Vec<String>>(),
                 None => ["".to_string()].to_vec(),
             },
@@ -564,6 +560,7 @@ fn setup_logger(matches: &ArgMatches) -> Result<(), fern::InitError> {
     Ok(())
 }
 
+// NOTE: The `config_create_test` failed for the master branch push on 2020-03-22.
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -596,8 +593,8 @@ mod tests {
                 repo_dets: vec![RepoDetails {
                     auto_update: false,
                     ignore: false,
-                    repo_url: GITIGNORE_DEFAULT_REPO.to_string(),
-                    repo_path: "github/gitignore".to_string(),
+                    repo_url: GITIGNORE_DEFAULT_REPO.to_owned(),
+                    repo_path: "github/gitignore".to_owned(),
                 }],
             },
         };
