@@ -8,18 +8,15 @@
  * Note: `super::` & `self::` are relative to the current module while `crate::` is relative to the
  * crate root.
  */
-use crate::config::{Operation, Options, RepoDetails, RuntimeFile};
+use crate::config::{Operation, Options, RepoDetails};
 
-// use git2::{Object, Repository};
-// use std::collections::hash_map::HashMap;
-use git2::build::CheckoutBuilder;
-use git2::Repository;
 use std::collections::btree_map::BTreeMap;
 use std::error::Error;
-use std::fs::{self, DirBuilder, DirEntry, File, OpenOptions};
-use std::io;
-use std::io::prelude::*;
+use std::fs::{self, DirEntry, File};
+use std::io::{self, prelude::*};
 use std::path::Path;
+
+use git2::Repository;
 
 // Macro used to reduce repetition when defining a cached repository's absolute path.
 macro_rules! absolute_repo_path {
@@ -55,6 +52,8 @@ type TemplatePaths = BTreeMap<String, Vec<String>>;
 /// })
 /// ```
 pub fn run(mut app_options: Options) -> Result<(), Box<dyn Error>> {
+    use crate::config::RuntimeFile;
+
     if app_options.needs_update {
         update_gitignore_repos(&app_options)?;
 
@@ -99,6 +98,8 @@ pub fn run(mut app_options: Options) -> Result<(), Box<dyn Error>> {
 ///
 /// ```
 fn generate_gitignore(app_options: &mut Options) -> Result<(), Box<dyn Error>> {
+    use std::fs::OpenOptions;
+
     info!("Generating gitignore");
 
     let consolidation_string: String;
@@ -270,6 +271,8 @@ fn parse_templates(app_options: &mut Options) -> Result<TemplatePaths, Box<dyn E
 ///
 /// REF: [github/nabijaczleweli](https://github.com/nabijaczleweli/cargo-update/blob/master/src/ops/mod.rs)
 fn update_gitignore_repos(app_options: &Options) -> Result<(), Box<dyn Error>> {
+    use git2::build::CheckoutBuilder;
+
     info!("Updating gitignore repo(s)");
 
     let mut checkout = CheckoutBuilder::new();
@@ -314,6 +317,8 @@ fn clone_repository(
     app_options: &Options,
     repo_det: &RepoDetails,
 ) -> Result<Repository, Box<dyn Error>> {
+    use std::fs::DirBuilder;
+
     info!("Cloning gitignore repo: {}", repo_det.repo_path);
 
     let absolute_repo_path = absolute_repo_path!(app_options, repo_det);

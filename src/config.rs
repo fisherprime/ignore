@@ -3,22 +3,14 @@
 //! The `config` module defines elements necessary for the setup and configuration of the runtime
 //! environment.
 
-extern crate chrono;
-extern crate dirs;
-extern crate fern;
-extern crate toml;
-
-// use std::collections::btree_map::BTreeMap;
-// use std::collections::hash_map::HashMap;
-// use std::ffi::OsString;
-// use std::io::ErrorKind;
-use clap::{App, AppSettings, Arg, ArgMatches};
-use serde::{Deserialize, Serialize};
 use std::error::Error;
-use std::fs::{DirBuilder, File, OpenOptions};
+use std::fs::{File, OpenOptions};
 use std::io::prelude::*;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime};
+
+use clap::ArgMatches;
+use serde::{Deserialize, Serialize};
 
 /// Constant specifying the amount of seconds in a day as [`u64`].
 const SECONDS_IN_DAY: u64 = 60 * 60 * 24;
@@ -387,9 +379,11 @@ impl Options {
 
 /// Configures [`clap`].
 ///
-/// This function configures [`clap`] then calls [`App::get_matches`] on the result to yield an
-/// [`ArgMatches`] item.
+/// This function configures [`clap`] then calls [`clap:App::get_matches`] on the result to yield a
+/// [`clap::ArgMatches`] item.
 fn setup_clap(matches: &mut ArgMatches) {
+    use clap::{App, AppSettings, Arg};
+
     // `env!("CARGO_PKG_VERSION")` replaced with `crate_version!`
     *matches = App::new("ignore")
             .setting(AppSettings::ArgRequiredElseHelp)
@@ -448,6 +442,8 @@ fn setup_clap(matches: &mut ArgMatches) {
 /// This function builds a filepath's directory hierarchy (if necessary) then creates the file
 /// specified by the path.
 fn create_file(file_path: &Path) -> Result<(), Box<dyn Error>> {
+    use std::fs::DirBuilder;
+
     info!("Creating file: {}", file_path.display());
 
     let file_dir = Path::new(&file_path).parent().unwrap();
@@ -462,8 +458,8 @@ fn create_file(file_path: &Path) -> Result<(), Box<dyn Error>> {
 
 /// Determines the operation specified in the user supplied arguments.
 ///
-/// This function checks for the presence of user arguments as provided in the [`ArgMatches`]
-/// struct created by [`clap`].
+/// This function checks for the presence of user arguments as provided in the [`clap::ArgMatches`]
+/// struct.
 fn get_operation(matches: &ArgMatches) -> Operation {
     if matches.is_present("template") {
         return Operation::GenerateGitignore;
@@ -504,11 +500,14 @@ fn check_staleness(last_update: &SystemTime, now: &SystemTime) -> Result<bool, B
 /// Configures the [`fern`] logger.
 ///
 /// This function configures the logger to output log messages using the `ISO` date format and
-/// verbosity levels specified by the verbosity arguments (within [`ArgMatches`]).
+/// verbosity levels specified by the verbosity arguments (within [`clap::ArgMatches`]).
 /// The arguments set the output verbosity for this crate to a maximum log level of either:
 /// [`log::LevelFilter::Info`], [`log::LevelFilter::Debug`], [`log::LevelFilter::Trace`],
 /// [`log::LevelFilter::Off`].
 fn setup_logger(matches: &ArgMatches) -> Result<(), fern::InitError> {
+    use fern::Dispatch;
+    use log::LevelFilter;
+
     debug!("Setting up logger");
 
     let mut verbose = true;
@@ -516,19 +515,19 @@ fn setup_logger(matches: &ArgMatches) -> Result<(), fern::InitError> {
     let log_max_level = match matches.occurrences_of("verbosity") {
         0 => {
             verbose = false;
-            log::LevelFilter::Info
+            LevelFilter::Info
         }
-        1 => log::LevelFilter::Debug,
-        2 => log::LevelFilter::Trace,
+        1 => LevelFilter::Debug,
+        2 => LevelFilter::Trace,
         _ => {
             verbose = false;
-            log::LevelFilter::Off
+            LevelFilter::Off
         }
     };
 
     match verbose {
         true => {
-            fern::Dispatch::new()
+            Dispatch::new()
                 .format(|out, message, record| {
                     out.finish(format_args!(
                         "{}[{}][{}] {}",
@@ -544,7 +543,7 @@ fn setup_logger(matches: &ArgMatches) -> Result<(), fern::InitError> {
                 .apply()?;
         }
         false => {
-            fern::Dispatch::new()
+            Dispatch::new()
                 .format(|out, message, record| {
                     out.finish(format_args!("[{}] {}", record.level(), message))
                 })
