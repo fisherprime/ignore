@@ -151,11 +151,8 @@ impl State {
             .write(true)
             .create(true)
             .open(state_file_pathbuf)?;
-        let read_bytes = state_file
-            .read_to_string(&mut state_string)
-            .unwrap_or_else(|_| 0);
 
-        if read_bytes > 0 {
+        if state_file.read_to_string(&mut state_string).unwrap_or(0) > 0 {
             if let Ok(state) = toml::from_str(state_string.trim()) {
                 debug!("Done parsing state file");
                 return Ok(state);
@@ -231,11 +228,8 @@ impl Config {
             .write(true)
             .create(true)
             .open(config_file_path)?;
-        let read_bytes = config_file
-            .read_to_string(&mut config_string)
-            .unwrap_or_else(|_| 0);
 
-        if read_bytes > 0 {
+        if config_file.read_to_string(&mut config_string).unwrap_or(0) > 0 {
             match toml::from_str(config_string.trim()) {
                 Ok(cfg) => {
                     debug!("Done parsing config file");
@@ -388,7 +382,7 @@ fn setup_clap(matches: &mut ArgMatches) {
     *matches = App::new("ignore")
             .setting(AppSettings::ArgRequiredElseHelp)
             .version(crate_version!())
-            .about("Generates .gitignore files")
+            .about("A .gitignore generator")
             .author("fisherprime")
             .arg(
                 Arg::with_name("config")
