@@ -1,5 +1,5 @@
 <a name=""></a>
-##  (2020-01-18)
+##  (2020-03-26)
 
 
 #### Features
@@ -17,6 +17,7 @@
 * **LICENSE.md:**  Add licence file ([1d44689c](1d44689c))
 * **README.md:**  Add README ([6363f29c](6363f29c))
 * **app.rs:**
+  *  Add template deduplication and list pretty print ([d8e41e5f](d8e41e5f))
   *  Add preliminary template deduplication ([b95da58e](b95da58e))
   *  Enable the config save function ([045289c7](045289c7))
   *  Add WIP ([25cb5f41](25cb5f41))
@@ -29,6 +30,7 @@
   *  Add support for multiple template sources ([50b9ce9e](50b9ce9e))
   *  Add support for user & path templates ([dab1c82f](dab1c82f))
   *  Populate initial files with code ([0d1fbc57](0d1fbc57))
+* **src/app.rs:**  Add templates used output ([9dda3380](9dda3380))
 
 #### Performance
 
