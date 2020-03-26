@@ -31,6 +31,12 @@ macro_rules! absolute_repo_path {
 /// `Binary tree hash-map` alias for simplicity.
 type TemplatePaths = BTreeMap<String, Vec<String>>;
 
+/// Const specifying the column limit to wrap an [`Operation::ListTemplates`] list line.
+const TEMPLATE_LIST_OUTPUT_LIMIT: usize = 78;
+
+/// Const specifying the file content delimiter used.
+const FILE_CONTENT_DELIMITER: &str = "# ----";
+
 /// Handles the execution of `ignore`'s functions.
 ///
 /// Using the parsed [`Options`], this function runs a task specified by the user in `ignore`'s
@@ -132,6 +138,7 @@ fn generate_gitignore(app_options: &mut Options) -> Result<(), Box<dyn Error>> {
         app_options.templates
     );
 
+    // FIXME: Replace with an error.
     Ok(())
 }
 
@@ -140,11 +147,9 @@ fn generate_gitignore(app_options: &mut Options) -> Result<(), Box<dyn Error>> {
 /// This function acts on a [`TemplatePaths`] item for the template arguments specified by a user,
 /// consolidating the filespaths listed within the item.
 fn concatenate_templates(available_templates: TemplatePaths) -> Result<String, Box<dyn Error>> {
-    let delimiter = "# ----";
-
     let mut consolidation_string = String::new();
     let mut return_string = String::new();
-    let mut template_list = String::new();
+    let mut templates_used = String::new();
 
     if available_templates.is_empty() {
         return Ok(consolidation_string);
@@ -154,19 +159,18 @@ fn concatenate_templates(available_templates: TemplatePaths) -> Result<String, B
     for (template, file_paths) in available_templates {
         let file_paths = &file_paths;
 
-        let mut template_string = format!("\n# {}\n{}\n", template, delimiter);
+        let mut template_string = format!("\n# {}\n{}\n", template, FILE_CONTENT_DELIMITER);
 
         let mut template_vec = Vec::<String>::new();
 
         for file_path in file_paths {
             debug!("Parsing: {}", file_path);
-
             match File::open(file_path) {
                 Ok(mut template_file) => {
-                    let mut temp_string = String::new();
+                    let mut buffer = String::new();
 
-                    template_file.read_to_string(&mut temp_string)?;
-                    template_vec.push(temp_string.to_owned());
+                    template_file.read_to_string(&mut buffer)?;
+                    template_vec.push(buffer.to_owned());
 
                     debug!(
                         "Appended {} content to {} template vector",
@@ -184,54 +188,140 @@ fn concatenate_templates(available_templates: TemplatePaths) -> Result<String, B
             continue;
         }
 
-        template_list.push_str(&format!(" {}", template));
-
-        template_vec.sort();
-        template_vec.dedup();
-
         if template_vec.len().gt(&1) {
-            for temp_string in template_vec {
-                // TODO: replace with per file deduplication_logic.
-                template_string.push_str(&temp_string);
-                // TODO: end replace with per file deduplication_logic.
-            }
-        } else {
-            template_string.push_str(&template_vec.pop().unwrap());
-        }
+            let deduped_string = dedup_templates(&template, template_vec.as_mut())?;
 
-        template_string.push_str(&format!("{}\n", delimiter));
+            templates_used.push_str(&format!(" {}", template));
+            template_string.push_str(&deduped_string);
+        } else {
+            templates_used.push_str(&format!(" {}", template));
+            template_string.push_str(&template_vec[0]);
+        }
+        template_string.push_str(&format!("{}\n", FILE_CONTENT_DELIMITER));
+
         consolidation_string.push_str(&template_string);
     }
 
+    if templates_used.is_empty() {
+        // FIXME: Replace with an error.
+        return Ok("".to_owned());
+    }
+
     return_string.push_str("#\n# .gitignore\n#\n\n");
-    return_string.push_str(&format!("# Templates used:{}\n", template_list));
-    return_string.push_str(&format!("{}", consolidation_string));
+    return_string.push_str(&format!(
+        "# Templates used:{}\n{}",
+        templates_used, consolidation_string
+    ));
 
     Ok(return_string)
+}
+
+/// Deduplicates .gitignore template file content.
+fn dedup_templates(
+    template: &str,
+    template_vec: &mut Vec<String>,
+) -> Result<String, Box<dyn Error>> {
+    // FIXME: Review this function for a better approach if any.
+    // Iterating over all the lines for subsequent template files of a given technology seems
+    // wasteful, they shouldn't be more than one so...
+
+    use lazy_static::lazy_static;
+    use regex::Regex;
+
+    template_vec.sort();
+    template_vec.dedup();
+
+    let primary_content = template_vec[0].clone();
+    let mut insert_string = String::new();
+
+    // NOTE: recommended by the `regex` crate's developers to avoid recompilation of the regex rule
+    // on subsequent runs.
+    lazy_static! {
+        static ref GITIGNORE_ENTRY_REGEX: Regex =
+            Regex::new(r"[\*/!]").expect("Failed to compile gitignore entry regex");
+    }
+
+    for index in 1..template_vec.len() {
+        for line in template_vec[index].lines() {
+            let trimmed_line = line.trim();
+
+            if !GITIGNORE_ENTRY_REGEX.is_match(trimmed_line) {
+                continue;
+            }
+
+            if primary_content.contains(trimmed_line) || insert_string.contains(trimmed_line) {
+                continue;
+            } else {
+                if insert_string.is_empty() {
+                    insert_string.push_str(&format!("{}\n", primary_content));
+                    insert_string.push_str(&format!(
+                        "# {}, supplementary content\n{}\n",
+                        template, FILE_CONTENT_DELIMITER
+                    ));
+                }
+                insert_string.push_str(&format!("{}\n", trimmed_line));
+            }
+        }
+    }
+
+    if !insert_string.is_empty() {
+        insert_string.push_str(&format!("{}\n", FILE_CONTENT_DELIMITER));
+        info!(
+            "Caveman-like deduplication performed on the `{}` gitignore template, review the output",
+            template
+        );
+
+        return Ok(insert_string);
+    }
+
+    Ok(primary_content)
 }
 
 /// Lists the names of projects, tools, languages, ... with cached .gitignore templates.
 fn list_templates(app_options: &mut Options) -> Result<(), Box<dyn Error>> {
     info!("Listing available templates");
 
-    let list_width = 6;
-
-    let mut list_string = String::new();
+    let mut template_list = String::new();
+    let mut template_list_line_len = template_list.len();
 
     let template_paths = generate_template_paths(app_options)?;
 
-    let mut key_vector: Vec<String> = template_paths.keys().cloned().collect();
-    key_vector.sort_by(|a, b| a.to_lowercase().cmp(&b.to_lowercase()));
+    // NOTE: This sort is necessary to achieve a sorted list, unless the `BTreeMap`'s sort is
+    // altered.
+    let mut template_identifiers: Vec<String> = template_paths.keys().cloned().collect();
+    template_identifiers.sort_by(|a, b| a.to_lowercase().cmp(&b.to_lowercase()));
 
-    for (index, key) in key_vector.iter().enumerate() {
-        list_string.push_str(&format!("{} ", key));
-
-        if index % list_width == 0 {
-            list_string.push_str("\n");
+    // FIXME: Review this section for a better approach if any.
+    // NOTE: This column print implementation yields the following average `time` results:
+    // 0.03s user 0.01s system 99% cpu 0.047 total.
+    // The former item count limited implementation yielded:
+    // 0.01s user 0.00s system 96% cpu 0.011 total.
+    let mut max_item_length = 0;
+    for key in template_identifiers.iter() {
+        let len = key.len();
+        if len > max_item_length {
+            max_item_length = len
         }
     }
-    println!("{}", list_string);
+    max_item_length = max_item_length + 1;
+    debug!("Max list item length: {}", max_item_length);
 
+    for key in template_identifiers.iter() {
+        let mut key_string = format!("{}", key);
+        for _ in key.len()..max_item_length {
+            key_string.push_str(" ");
+        }
+
+        if template_list_line_len + max_item_length <= TEMPLATE_LIST_OUTPUT_LIMIT {
+            template_list.push_str(&key_string);
+            template_list_line_len = template_list_line_len + max_item_length
+        } else {
+            template_list.push_str(&format!("\n{}", key_string));
+            template_list_line_len = 0 + max_item_length
+        }
+    }
+
+    println!("{}", template_list);
     debug!("Done listing available templates");
 
     Ok(())
