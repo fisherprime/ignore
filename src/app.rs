@@ -9,9 +9,10 @@
  * crate root.
  */
 use crate::config::{Operation, Options, RepoDetails};
+use crate::errors::{Error, ErrorKind};
 
 use std::collections::btree_map::BTreeMap;
-use std::error::Error;
+use std::error::Error as StdErr;
 use std::fs::{self, DirEntry, File};
 use std::io::{self, prelude::*};
 use std::path::Path;
@@ -57,7 +58,7 @@ const FILE_CONTENT_DELIMITER: &str = "# ----";
 ///         .unwrap_or_else(|err| panic!("Application error: {}", err))
 /// })
 /// ```
-pub fn run(mut app_options: Options) -> Result<(), Box<dyn Error>> {
+pub fn run(mut app_options: Options) -> Result<(), Box<dyn StdErr>> {
     use crate::config::RuntimeFile;
 
     if app_options.needs_update {
@@ -82,10 +83,10 @@ pub fn run(mut app_options: Options) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-/// Consolidates locally cached .gitignore template files.
+/// Consolidates locally cached gitignore template files.
 ///
 /// This function calls [`parse_templates`] then [`concatenate_templates`]  for the user defined
-/// .gitignore template arguments, yielding a consolidated .gitignore file.
+/// gitignore template arguments, yielding a consolidated gitignore file.
 ///
 /// # Examples
 ///
@@ -103,7 +104,7 @@ pub fn run(mut app_options: Options) -> Result<(), Box<dyn Error>> {
 ///     .unwrap_or_else(|err| panic!("Application error: {}", err))
 ///
 /// ```
-fn generate_gitignore(app_options: &mut Options) -> Result<(), Box<dyn Error>> {
+fn generate_gitignore(app_options: &mut Options) -> Result<(), Box<dyn StdErr>> {
     use std::fs::OpenOptions;
 
     info!("Generating gitignore");
@@ -113,46 +114,39 @@ fn generate_gitignore(app_options: &mut Options) -> Result<(), Box<dyn Error>> {
     let available_templates = parse_templates(app_options)?;
     debug!("Available templates: {:?}", available_templates);
 
-    let result = {
-        consolidation_string = concatenate_templates(available_templates)?;
-        !consolidation_string.is_empty()
-    };
+    consolidation_string = concatenate_templates(&app_options.templates, available_templates)?;
 
-    if result {
-        let mut consolidation_file = OpenOptions::new()
-            .read(true)
-            .write(true)
-            .create(true)
-            .open(&app_options.output_file)?;
-        debug!("Opened gitignore template consolidation file");
+    let mut consolidation_file = OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(true)
+        .open(&app_options.output_file)?;
+    debug!("Opened gitignore template consolidation file");
 
-        consolidation_file.set_len(0)?;
-        consolidation_file.write_all(consolidation_string.as_bytes())?;
-        info!("Generated gitignore: {}", app_options.output_file);
+    consolidation_file.set_len(0)?;
+    consolidation_file.write_all(consolidation_string.as_bytes())?;
+    info!("Generated gitignore: {}", app_options.output_file);
 
-        return Ok(());
-    }
-
-    warn!(
-        "Neither of the specified template(s) could not be located (names are case sensitive): {:?}",
-        app_options.templates
-    );
-
-    // FIXME: Replace with an error.
-    Ok(())
+    return Ok(());
 }
 
-/// Concatenates .gitignore template files specified by the user.
+/// Concatenates gitignore template files specified by the user.
 ///
 /// This function acts on a [`TemplatePaths`] item for the template arguments specified by a user,
 /// consolidating the filespaths listed within the item.
-fn concatenate_templates(available_templates: TemplatePaths) -> Result<String, Box<dyn Error>> {
+fn concatenate_templates(
+    requested_templates: &Vec<String>,
+    available_templates: TemplatePaths,
+) -> Result<String, Box<dyn StdErr>> {
     let mut consolidation_string = String::new();
     let mut return_string = String::new();
     let mut templates_used = String::new();
 
     if available_templates.is_empty() {
-        return Ok(consolidation_string);
+        warn!(
+        "Neither of the specified template(s) could not be located (names are case sensitive): {:?}",
+        requested_templates);
+        return Err(Box::new(Error::from(ErrorKind::MissingTemplates)));
     }
 
     // Iterate over template_paths, opening necessary file & concatenating them.
@@ -178,7 +172,7 @@ fn concatenate_templates(available_templates: TemplatePaths) -> Result<String, B
                     );
                 }
                 Err(err) => {
-                    error!("Error opening .gitignore template file: {}", err);
+                    error!("Error opening gitignore template file: {}", err);
                     continue;
                 }
             };
@@ -187,6 +181,9 @@ fn concatenate_templates(available_templates: TemplatePaths) -> Result<String, B
         if template_vec.is_empty() {
             continue;
         }
+
+        template_vec.sort();
+        template_vec.dedup();
 
         if template_vec.len().gt(&1) {
             let deduped_string = dedup_templates(&template, template_vec.as_mut())?;
@@ -203,8 +200,10 @@ fn concatenate_templates(available_templates: TemplatePaths) -> Result<String, B
     }
 
     if templates_used.is_empty() {
-        // FIXME: Replace with an error.
-        return Ok("".to_owned());
+        warn!(
+        "Neither of the specified template(s) could not be located (names are case sensitive): {:?}",
+        requested_templates);
+        return Err(Box::new(Error::from(ErrorKind::MissingTemplates)));
     }
 
     return_string.push_str("#\n# .gitignore\n#\n\n");
@@ -216,23 +215,19 @@ fn concatenate_templates(available_templates: TemplatePaths) -> Result<String, B
     Ok(return_string)
 }
 
-/// Deduplicates .gitignore template file content.
+/// Deduplicates gitignore template file content.
 fn dedup_templates(
     template: &str,
     template_vec: &mut Vec<String>,
-) -> Result<String, Box<dyn Error>> {
+) -> Result<String, Box<dyn StdErr>> {
     // FIXME: Review this function for a better approach if any.
     // Iterating over all the lines for subsequent template files of a given technology seems
     // wasteful, they shouldn't be more than one so...
 
+    info!("Deduplicating gitignore template entries for: {}", template);
+
     use lazy_static::lazy_static;
     use regex::Regex;
-
-    template_vec.sort();
-    template_vec.dedup();
-
-    let primary_content = template_vec[0].clone();
-    let mut insert_string = String::new();
 
     // NOTE: recommended by the `regex` crate's developers to avoid recompilation of the regex rule
     // on subsequent runs.
@@ -241,15 +236,19 @@ fn dedup_templates(
             Regex::new(r"[\*/!]").expect("Failed to compile gitignore entry regex");
     }
 
+    let primary_content = template_vec[0].clone();
+    let mut insert_string = String::new();
+
     for index in 1..template_vec.len() {
         for line in template_vec[index].lines() {
             let trimmed_line = line.trim();
 
-            if !GITIGNORE_ENTRY_REGEX.is_match(trimmed_line) {
-                continue;
-            }
-
-            if primary_content.contains(trimmed_line) || insert_string.contains(trimmed_line) {
+            let invalid_line = {
+                !GITIGNORE_ENTRY_REGEX.is_match(trimmed_line)
+                    || primary_content.contains(trimmed_line)
+                    || insert_string.contains(trimmed_line)
+            };
+            if invalid_line {
                 continue;
             } else {
                 if insert_string.is_empty() {
@@ -264,21 +263,23 @@ fn dedup_templates(
         }
     }
 
-    if !insert_string.is_empty() {
-        insert_string.push_str(&format!("{}\n", FILE_CONTENT_DELIMITER));
-        info!(
-            "Caveman-like deduplication performed on the `{}` gitignore template, review the output",
-            template
-        );
-
-        return Ok(insert_string);
+    if insert_string.is_empty() {
+        return Ok(primary_content);
     }
 
-    Ok(primary_content)
+    insert_string.push_str(&format!("{}\n", FILE_CONTENT_DELIMITER));
+    info!(
+        "Caveman-like deduplication performed on the `{}` gitignore template, review the output",
+        template
+    );
+
+    Ok(insert_string)
 }
 
-/// Lists the names of projects, tools, languages, ... with cached .gitignore templates.
-fn list_templates(app_options: &mut Options) -> Result<(), Box<dyn Error>> {
+/// Lists the names of projects, tools, languages, ... with cached gitignore templates.
+fn list_templates(app_options: &mut Options) -> Result<(), Box<dyn StdErr>> {
+    // FIXME: Review this function for a better approach if any.
+
     info!("Listing available templates");
 
     let mut template_list = String::new();
@@ -291,7 +292,6 @@ fn list_templates(app_options: &mut Options) -> Result<(), Box<dyn Error>> {
     let mut template_identifiers: Vec<String> = template_paths.keys().cloned().collect();
     template_identifiers.sort_by(|a, b| a.to_lowercase().cmp(&b.to_lowercase()));
 
-    // FIXME: Review this section for a better approach if any.
     // NOTE: This column print implementation yields the following average `time` results:
     // 0.03s user 0.01s system 99% cpu 0.047 total.
     // The former item count limited implementation yielded:
@@ -327,13 +327,13 @@ fn list_templates(app_options: &mut Options) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-/// Generates [`TemplatePaths`] for the available .gitignore template arguments supplied by a user.
+/// Generates [`TemplatePaths`] for the available gitignore template arguments supplied by a user.
 ///
-/// This function generates a [`TemplatePaths`] item for the available .gitignore template files
+/// This function generates a [`TemplatePaths`] item for the available gitignore template files
 /// desired by a user.
 /// Using the output of [`generate_template_paths`], the [`TemplatePaths`] is filtered to contain
 /// entries explicitly requested by the user.
-fn parse_templates(app_options: &mut Options) -> Result<TemplatePaths, Box<dyn Error>> {
+fn parse_templates(app_options: &mut Options) -> Result<TemplatePaths, Box<dyn StdErr>> {
     debug!("Parsing template options");
 
     let template_list = app_options.templates.clone();
@@ -352,7 +352,7 @@ fn parse_templates(app_options: &mut Options) -> Result<TemplatePaths, Box<dyn E
     Ok(available_templates)
 }
 
-/// Updates the cached .gitignore template repositories (git only).
+/// Updates the cached gitignore template repositories (git only).
 ///
 /// This function fetches and merges the latest `HEAD` for an existing git repository, cloning one if
 /// not locally cached.
@@ -360,7 +360,7 @@ fn parse_templates(app_options: &mut Options) -> Result<TemplatePaths, Box<dyn E
 /// [`const REPO_UPDATE_LIMIT`]) & the update operation isn't desired by the user.
 ///
 /// REF: [github/nabijaczleweli](https://github.com/nabijaczleweli/cargo-update/blob/master/src/ops/mod.rs)
-fn update_gitignore_repos(app_options: &Options) -> Result<(), Box<dyn Error>> {
+fn update_gitignore_repos(app_options: &Options) -> Result<(), Box<dyn StdErr>> {
     use git2::build::CheckoutBuilder;
 
     info!("Updating gitignore repo(s)");
@@ -406,7 +406,7 @@ fn update_gitignore_repos(app_options: &Options) -> Result<(), Box<dyn Error>> {
 fn clone_repository(
     app_options: &Options,
     repo_det: &RepoDetails,
-) -> Result<Repository, Box<dyn Error>> {
+) -> Result<Repository, Box<dyn StdErr>> {
     use std::fs::DirBuilder;
 
     info!("Cloning gitignore repo: {}", repo_det.repo_path);
@@ -427,7 +427,7 @@ fn clone_repository(
 ///
 /// This function prepares a [`TemplatePaths`] variable then calls [`update_template_paths`] to
 /// update it.
-fn generate_template_paths(app_options: &mut Options) -> Result<TemplatePaths, Box<dyn Error>> {
+fn generate_template_paths(app_options: &mut Options) -> Result<TemplatePaths, Box<dyn StdErr>> {
     let mut template_paths = TemplatePaths::new();
 
     for repo_det in app_options.config.repo.repo_dets.iter() {
@@ -451,7 +451,7 @@ fn generate_template_paths(app_options: &mut Options) -> Result<TemplatePaths, B
 
 /// Populates a [`TemplatePaths`] item with filepath entries.
 ///
-/// This function recurses on the contents of the cached .gitignore template repositories,
+/// This function recurses on the contents of the cached gitignore template repositories,
 /// appending filepath entries to the passed [`TemplatePaths`] item for all available templates.
 fn update_template_paths(dir: &Path, template_paths: &mut TemplatePaths) -> io::Result<()> {
     debug!("Updating template file paths, dir: {}", dir.display());

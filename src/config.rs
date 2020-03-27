@@ -3,7 +3,7 @@
 //! The `config` module defines elements necessary for the setup and configuration of the runtime
 //! environment.
 
-use std::error::Error;
+use std::error::Error as StdErr;
 use std::fs::{File, OpenOptions};
 use std::io::prelude::*;
 use std::path::{Path, PathBuf};
@@ -19,11 +19,11 @@ const SECONDS_IN_DAY: u64 = 60 * 60 * 24;
 /// 64-bit integer).
 const REPO_UPDATE_LIMIT: u64 = SECONDS_IN_DAY * 7;
 
-/// Constant specifying the default .gitignore template repo to use.
+/// Constant specifying the default gitignore template repo to use.
 const GITIGNORE_DEFAULT_REPO: &str = "https://github.com/github/gitignore";
 
 /// Constant specifying the cache subdirectory within the system's cache directory to store
-/// .gitignore template repositories.
+/// gitignore template repositories.
 const GITIGNORE_REPO_CACHE_SUBDIR: &str = "ignore/repos";
 
 /// Constant specifying the location of the last run state file from some parent directory (i.e.
@@ -71,10 +71,10 @@ pub struct RepoDetails {
     /// Choice for ignoring repository usage for any task.
     pub ignore: bool,
 
-    /// Relative path (to repo_parent_dir) of .gitignore template repo to use.
+    /// Relative path (to repo_parent_dir) of gitignore template repo to use.
     pub repo_path: String,
 
-    /// URL of git repository containing .gitignore templates.
+    /// URL of git repository containing gitignore templates.
     pub repo_url: String,
 }
 
@@ -90,7 +90,7 @@ pub struct Options {
     /// Exclusive operation specified by user.
     pub operation: Operation,
 
-    /// Option used to auto-update cached .gitignore tempalate repositories.
+    /// Option used to auto-update cached gitignore tempalate repositories.
     pub needs_update: bool,
 
     /// Path to configuration file.
@@ -99,10 +99,10 @@ pub struct Options {
     /// Path to last runtime state file.
     pub state_path: String,
 
-    /// Path to output generated .gitignore.
+    /// Path to output generated gitignore.
     pub output_file: String,
 
-    /// List of templates user desires to use in .gitignore generation.
+    /// List of templates user desires to use in gitignore generation.
     pub templates: Vec<String>,
 }
 
@@ -113,7 +113,7 @@ pub enum Operation {
     ListTemplates,
     /// Option to update repository.
     UpdateRepo,
-    /// Option to generate .gitignore file.
+    /// Option to generate gitignore file.
     GenerateGitignore,
     /* /// Option to skip running any operation.
      * Skip, */
@@ -136,7 +136,7 @@ impl State {
     }
 
     /// Parses state file contents & generates a [`State`] item.
-    pub fn parse(self) -> Result<State, Box<dyn Error>> {
+    pub fn parse(self) -> Result<State, Box<dyn StdErr>> {
         let mut state_file_pathbuf = dirs::cache_dir().unwrap();
         state_file_pathbuf.push(STATE_FILE_SPATH);
 
@@ -165,7 +165,7 @@ impl State {
     }
 
     /// Updates the contents of the state file with the current [`State`].
-    fn update_file(&self, state_file: &mut File) -> Result<(), Box<dyn Error>> {
+    fn update_file(&self, state_file: &mut File) -> Result<(), Box<dyn StdErr>> {
         state_file.write_all(toml::to_string(&self)?.as_bytes())?;
         debug!("Updated state file");
 
@@ -218,7 +218,7 @@ impl Config {
 
     /// Parses config file contents & generates a [`Config`] item.
     // Passing a reference to Config struct avoid taking ownership.
-    fn parse(&self, config_file_path: &str) -> Result<Config, Box<dyn Error>> {
+    fn parse(&self, config_file_path: &str) -> Result<Config, Box<dyn StdErr>> {
         debug!("Parsing config file");
 
         let mut config_string = String::new();
@@ -249,7 +249,7 @@ impl Config {
     }
 
     /// Updates the contents of the config file with the current [`Config`].
-    fn update_file(&self, config_file: &mut File) -> Result<(), Box<dyn Error>> {
+    fn update_file(&self, config_file: &mut File) -> Result<(), Box<dyn StdErr>> {
         config_file.write_all(toml::to_string(&self)?.as_bytes())?;
         debug!("Updated config file");
 
@@ -259,7 +259,7 @@ impl Config {
 
 impl Options {
     /// Parses command arguments.
-    pub fn parse() -> Result<Options, Box<dyn Error>> {
+    pub fn parse() -> Result<Options, Box<dyn StdErr>> {
         debug!("Parsing command arguments & config file");
 
         let now = SystemTime::now();
@@ -347,7 +347,7 @@ impl Options {
 
     /// A wrapper function to allow saving a [`Config`] or [`State`] item contained within an
     /// [`Options`] item.
-    pub fn save_file(&self, file_type: RuntimeFile) -> Result<(), Box<dyn Error>> {
+    pub fn save_file(&self, file_type: RuntimeFile) -> Result<(), Box<dyn StdErr>> {
         let file_path = match file_type {
             RuntimeFile::StateFile => self.state_path.clone(),
             RuntimeFile::ConfigFile => self.config_path.clone(),
@@ -382,7 +382,7 @@ fn setup_clap(matches: &mut ArgMatches) {
     *matches = App::new("ignore")
             .setting(AppSettings::ArgRequiredElseHelp)
             .version(crate_version!())
-            .about("A .gitignore generator")
+            .about("A gitignore generator")
             .author("fisherprime")
             .arg(
                 Arg::with_name("config")
@@ -408,7 +408,7 @@ fn setup_clap(matches: &mut ArgMatches) {
             )
             .arg(
                 Arg::with_name("template")
-                .help("Case sensitive specification of language(s), tool(s) and/or project template(s) to use in generating .gitignore.")
+                .help("Case sensitive specification of language(s), tool(s) and/or project template(s) to use in generating gitignore.")
                 .short("t")
                 .long("templates")
                 .value_name("TEMPLATE")
@@ -435,7 +435,7 @@ fn setup_clap(matches: &mut ArgMatches) {
 ///
 /// This function builds a filepath's directory hierarchy (if necessary) then creates the file
 /// specified by the path.
-fn create_file(file_path: &Path) -> Result<(), Box<dyn Error>> {
+fn create_file(file_path: &Path) -> Result<(), Box<dyn StdErr>> {
     use std::fs::DirBuilder;
 
     info!("Creating file: {}", file_path.display());
@@ -470,14 +470,14 @@ fn get_operation(matches: &ArgMatches) -> Operation {
     Operation::Else
 }
 
-/// Checks for staleness of the cached .gitignore template repositories.
+/// Checks for staleness of the cached gitignore template repositories.
 ///
 /// This function compares the current [`SystemTime`] to the last repository update time.
 /// This function returns `true` (staleness state) should the time difference between the last
 /// repo update & current run be greater than [`REPO_UPDATE_LIMIT`] or this be the first execution
 /// of the binary.
 /// Otherwise, this function returns` false`.
-fn check_staleness(last_update: &SystemTime, now: &SystemTime) -> Result<bool, Box<dyn Error>> {
+fn check_staleness(last_update: &SystemTime, now: &SystemTime) -> Result<bool, Box<dyn StdErr>> {
     let repos_are_stale = {
         (now.duration_since(*last_update)? > Duration::new(REPO_UPDATE_LIMIT, 0))
             || now.eq(last_update)
