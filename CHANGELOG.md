@@ -1,6 +1,21 @@
 <a name=""></a>
-##  (2020-03-26)
+##  (2020-03-27)
 
+
+#### Performance
+
+* ***:**
+  *  Change Config to a member of Options ([489f53c7](489f53c7))
+  *  Move clap create (+macro) loading to root ([627f2345](627f2345))
+  *  Move serde crate loading to config.rs ([202a40cc](202a40cc))
+  *  Add Cargo.lock to .gitignore ([4cf2f01d](4cf2f01d))
+* **Config.toml:**  Remove ref to unused crate ([e65a0407](e65a0407))
+* **config.re:**  Comment out unused crate ([199ce723](199ce723))
+* **config.rs:**
+  *  Remove app_config cloning ([eeac5794](eeac5794))
+  *  Rework functions into struct methods ([9241a390](9241a390))
+  *  Section the Config struct ([d141d133](d141d133))
+* **main.rs:**  Replace unwrap with expect ([cb3302d0](cb3302d0))
 
 #### Features
 
@@ -27,25 +42,11 @@
   *  Add config struct tests ([a3402bc6](a3402bc6))
   *  Add the Options struct ([3acbead2](3acbead2))
 * **src/*.rs:**
+  *  Add custom error type, fix some issues ([c0c216b6](c0c216b6))
   *  Add support for multiple template sources ([50b9ce9e](50b9ce9e))
   *  Add support for user & path templates ([dab1c82f](dab1c82f))
   *  Populate initial files with code ([0d1fbc57](0d1fbc57))
 * **src/app.rs:**  Add templates used output ([9dda3380](9dda3380))
-
-#### Performance
-
-* ***:**
-  *  Change Config to a member of Options ([489f53c7](489f53c7))
-  *  Move clap create (+macro) loading to root ([627f2345](627f2345))
-  *  Move serde crate loading to config.rs ([202a40cc](202a40cc))
-  *  Add Cargo.lock to .gitignore ([4cf2f01d](4cf2f01d))
-* **Config.toml:**  Remove ref to unused crate ([e65a0407](e65a0407))
-* **config.re:**  Comment out unused crate ([199ce723](199ce723))
-* **config.rs:**
-  *  Remove app_config cloning ([eeac5794](eeac5794))
-  *  Rework functions into struct methods ([9241a390](9241a390))
-  *  Section the Config struct ([d141d133](d141d133))
-* **main.rs:**  Replace unwrap with expect ([cb3302d0](cb3302d0))
 
 #### Bug Fixes
 
