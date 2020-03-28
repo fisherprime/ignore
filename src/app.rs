@@ -8,7 +8,7 @@
  * Note: `super::` & `self::` are relative to the current module while `crate::` is relative to the
  * crate root.
  */
-use crate::config::{Operation, Options, RepoDetails};
+use crate::config::{config::RepoDetails, options::Operation, options::Options};
 use crate::errors::{Error, ErrorKind};
 
 use std::collections::btree_map::BTreeMap;
@@ -59,13 +59,11 @@ const FILE_CONTENT_DELIMITER: &str = "# ----";
 /// })
 /// ```
 pub fn run(mut app_options: Options) -> Result<(), Box<dyn StdErr>> {
-    use crate::config::RuntimeFile;
-
     if app_options.needs_update {
         update_gitignore_repos(&app_options)?;
 
         if app_options.operation == Operation::UpdateRepo {
-            app_options.save_file(RuntimeFile::ConfigFile)?;
+            app_options.config.save_file()?;
             return Ok(());
         }
     }
@@ -77,8 +75,9 @@ pub fn run(mut app_options: Options) -> Result<(), Box<dyn StdErr>> {
         Operation::Else => info!("No operation specified, this shouldn't have happened"),
     }
 
-    &app_options.save_file(RuntimeFile::ConfigFile)?;
-    &app_options.save_file(RuntimeFile::StateFile)?;
+    debug!("Options: {:?}", app_options);
+    app_options.config.save_file()?;
+    app_options.state.save_file()?;
 
     Ok(())
 }

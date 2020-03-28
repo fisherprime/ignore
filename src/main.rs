@@ -21,7 +21,7 @@ mod config;
 mod errors;
 
 use app::run;
-use config::Options;
+use config::options::Options;
 
 /// This is the entry point for `ignore`'s binary.
 ///

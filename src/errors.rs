@@ -5,6 +5,7 @@
 use std::error::Error as StdErr;
 use std::fmt::{Display, Formatter, Result};
 
+/// `enum` containing the possible kinds of error for `ignore`.
 #[allow(dead_code)]
 #[derive(Debug)]
 pub enum ErrorKind {
@@ -18,11 +19,18 @@ pub enum ErrorKind {
     Other,
 }
 
+/// `struct` containing `ignore`'s error contents.
 #[derive(Debug)]
 pub struct Error {
+    /// The kind of error as enumerated in [`errors::ErrorKind`].
     kind: ErrorKind,
+
+    /// The message for an [`ErrorKind::Other`] error.
     other_message: String,
-    error: Option<Box<dyn StdErr>>,
+
+    // FIXME: Look into moving other_message into error; the `Option` will have to go.
+    /// Optional field containing error resulting in this error.
+    error: Option<Box<dyn StdErr + Send + Sync>>,
 }
 
 /// Method implementations for [`errors::Error`].
