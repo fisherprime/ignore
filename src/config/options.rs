@@ -1,8 +1,5 @@
 // SPDX-License-Identifier: MIT
 
-//! The `config` module defines elements necessary for the setup and configuration of the runtime
-//! environment.
-
 use super::{config::Config, state::State};
 
 use std::error::Error as StdErr;
@@ -117,7 +114,7 @@ impl Options {
             },
         };
         debug!(
-            "Parsed command arguments & config file, options: {:?}",
+            "Parsed command arguments & config file, options: {:#?}",
             app_options
         );
 
@@ -136,12 +133,16 @@ pub fn check_staleness(
     last_update: &SystemTime,
     now: &SystemTime,
 ) -> Result<bool, Box<dyn StdErr>> {
-    let repos_are_stale = {
+    let is_stale = {
         (now.duration_since(*last_update)? > Duration::new(REPO_UPDATE_LIMIT, 0))
             || now.eq(last_update)
     };
+    debug!(
+        "Last repo update: {:#?}, now: {:#?}, is stale: {}",
+        last_update, now, is_stale
+    );
 
-    Ok(repos_are_stale)
+    Ok(is_stale)
 }
 
 /// Determines the operation specified in the user supplied arguments.

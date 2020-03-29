@@ -128,11 +128,13 @@ impl Config {
         if config_file.read_to_string(&mut config_string).unwrap_or(0) > 0 {
             match toml::from_str(config_string.trim()) {
                 Ok(cfg) => {
-                    debug!("Done parsing config filei");
-                    return Ok(Config {
+                    let config = Config {
                         path: self.path.clone(),
                         ..cfg
-                    });
+                    };
+                    debug!("Done parsing config file, config: {:#?}", config);
+
+                    return Ok(config);
                 }
                 Err(_) => {
                     info!("Backing up config file");
@@ -143,7 +145,7 @@ impl Config {
 
         info!("Config file is empty, using default config values");
         self.update_file(&mut config_file)?;
-        debug!("Config: {:?}", self);
+        debug!("Config: {:#?}", self);
 
         Ok(self.clone())
     }

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 pub mod config;
 pub mod options;
 pub mod setup;

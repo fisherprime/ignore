@@ -63,17 +63,19 @@ impl State {
 
         if state_file.read_to_string(&mut state_content).unwrap_or(0) > 0 {
             if let Ok(state) = toml::from_str(state_content.trim()) {
-                debug!("Done parsing state file");
-                return Ok(State {
+                let internal_state = State {
                     path: self.path.clone(),
                     ..state
-                });
+                };
+                debug!("Done parsing state file, state: {:#?}", internal_state);
+
+                return Ok(internal_state);
             }
         }
 
         info!("State file is empty");
         self.update_file(&mut state_file)?;
-        debug!("State: {:?}", self);
+        debug!("State: {:#?}", self);
 
         Ok(self.clone())
     }

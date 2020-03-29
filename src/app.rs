@@ -75,11 +75,8 @@ pub fn run(mut app_options: Options) -> Result<(), Box<dyn StdErr>> {
         Operation::Else => info!("No operation specified, this shouldn't have happened"),
     }
 
-    debug!("Options: {:?}", app_options);
     app_options.config.save_file()?;
-    app_options.state.save_file()?;
-
-    Ok(())
+    app_options.state.save_file()
 }
 
 /// Consolidates locally cached gitignore template files.
@@ -111,7 +108,7 @@ fn generate_gitignore(app_options: &mut Options) -> Result<(), Box<dyn StdErr>> 
     let consolidation_string: String;
 
     let available_templates = parse_templates(app_options)?;
-    debug!("Available templates: {:?}", available_templates);
+    debug!("Available templates: {:#?}", available_templates);
 
     consolidation_string = concatenate_templates(&app_options.templates, available_templates)?;
 
@@ -416,6 +413,7 @@ fn clone_repository(
         .recursive(true)
         .create(&app_options.config.repo.repo_parent_dir)?;
 
+    // NOTE: Wrapped in `Ok` to allow for the conversion of `git::error::Error` to `Box<dyn std::error::Error>`.
     Ok(Repository::clone_recurse(
         &repo_det.repo_url,
         &absolute_repo_path,
@@ -436,14 +434,14 @@ fn generate_template_paths(app_options: &mut Options) -> Result<TemplatePaths, B
 
         let absolute_repo_path = absolute_repo_path!(app_options, repo_det);
 
-        // If the repository doesn't exist
+        // If the repository doesn't exist.
         if !Path::new(&absolute_repo_path).is_dir() {
             clone_repository(&app_options, &repo_det)?;
         };
 
         update_template_paths(&Path::new(&absolute_repo_path), &mut template_paths)?;
-        debug!("Template hash: {:?}", template_paths);
     }
+    debug!("Template hash map: {:#?}", template_paths);
 
     Ok(template_paths)
 }
@@ -453,7 +451,7 @@ fn generate_template_paths(app_options: &mut Options) -> Result<TemplatePaths, B
 /// This function recurses on the contents of the cached gitignore template repositories,
 /// appending filepath entries to the passed [`TemplatePaths`] item for all available templates.
 fn update_template_paths(dir: &Path, template_paths: &mut TemplatePaths) -> io::Result<()> {
-    debug!("Updating template file paths, dir: {}", dir.display());
+    debug!("Updating template file paths for: {}", dir.display());
 
     // Store template name & path in hashmap.
     for entry in fs::read_dir(dir)? {
@@ -468,7 +466,7 @@ fn update_template_paths(dir: &Path, template_paths: &mut TemplatePaths) -> io::
 
         if entry_path.is_dir() {
             update_template_paths(&entry_path, template_paths)?;
-            debug!("Dir: {}", &entry_path_string);
+            debug!("Template scan directory: {}", &entry_path_string);
 
             continue;
         }
@@ -480,7 +478,7 @@ fn update_template_paths(dir: &Path, template_paths: &mut TemplatePaths) -> io::
         template.push(entry_path_string);
     }
 
-    debug!("Done updating template file paths, dir: {}", dir.display());
+    debug!("Done updating template file paths for: {}", dir.display());
 
     Ok(())
 }

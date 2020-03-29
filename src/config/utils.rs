@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 use std::error::Error as StdErr;
 use std::fs::File;
 use std::path::Path;
