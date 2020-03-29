@@ -4,16 +4,9 @@ use super::{config::Config, state::State};
 
 use std::error::Error as StdErr;
 use std::path::Path;
-use std::time::{Duration, SystemTime};
+use std::time::SystemTime;
 
 use clap::ArgMatches;
-
-/// Constant specifying the amount of seconds in a day as [`u64`].
-const SECONDS_IN_DAY: u64 = 60 * 60 * 24;
-
-/// Constant specifying the time to consider a repository's contents as state as [`u64`] (unsigned
-/// 64-bit integer).
-const REPO_UPDATE_LIMIT: u64 = SECONDS_IN_DAY * 7;
 
 /// `struct` containing runtime options gathered from the config file and command arguments.
 #[derive(Debug, Clone)]
@@ -65,7 +58,7 @@ impl Options {
         let mut config_file_path = String::new();
 
         let mut app_config = Config::default();
-        let app_state = State::default().parse()?;
+        let app_state = State::new(&now).parse()?;
 
         let mut matches = ArgMatches::new();
 
@@ -100,11 +93,12 @@ impl Options {
             app_config
         });
 
+        let is_stale = app_state.check_staleness(&now)?;
         let app_options = Options {
             config: app_config,
-            state: app_state.clone(),
+            state: app_state,
             operation: get_operation(&matches),
-            needs_update: check_staleness(&app_state.last_run, &now)?,
+            needs_update: is_stale,
             output_file: matches.value_of("output").unwrap_or("gitignore").to_owned(),
             templates: match matches.values_of("template") {
                 Some(templates_arg) => templates_arg
@@ -120,29 +114,6 @@ impl Options {
 
         Ok(app_options)
     }
-}
-
-/// Checks for staleness of the cached gitignore template repositories.
-///
-/// This function compares the current [`SystemTime`] to the last repository update time.
-/// This function returns `true` (staleness state) should the time difference between the last
-/// repo update & current run be greater than [`REPO_UPDATE_LIMIT`] or this be the first execution
-/// of the binary.
-/// Otherwise, this function returns` false`.
-pub fn check_staleness(
-    last_update: &SystemTime,
-    now: &SystemTime,
-) -> Result<bool, Box<dyn StdErr>> {
-    let is_stale = {
-        (now.duration_since(*last_update)? > Duration::new(REPO_UPDATE_LIMIT, 0))
-            || now.eq(last_update)
-    };
-    debug!(
-        "Last repo update: {:#?}, now: {:#?}, is stale: {}",
-        last_update, now, is_stale
-    );
-
-    Ok(is_stale)
 }
 
 /// Determines the operation specified in the user supplied arguments.

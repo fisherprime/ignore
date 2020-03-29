@@ -60,18 +60,17 @@ const FILE_CONTENT_DELIMITER: &str = "# ----";
 /// ```
 pub fn run(mut app_options: Options) -> Result<(), Box<dyn StdErr>> {
     if app_options.needs_update {
-        update_gitignore_repos(&app_options)?;
-
+        update_gitignore_repos(&mut app_options)?;
         if app_options.operation == Operation::UpdateRepo {
             app_options.config.save_file()?;
-            return Ok(());
+            return app_options.state.save_file();
         }
     }
 
     match app_options.operation {
         Operation::GenerateGitignore => generate_gitignore(&mut app_options)?,
         Operation::ListTemplates => list_templates(&mut app_options)?,
-        Operation::UpdateRepo => update_gitignore_repos(&app_options)?,
+        Operation::UpdateRepo => update_gitignore_repos(&mut app_options)?,
         Operation::Else => info!("No operation specified, this shouldn't have happened"),
     }
 
@@ -356,8 +355,9 @@ fn parse_templates(app_options: &mut Options) -> Result<TemplatePaths, Box<dyn S
 /// [`const REPO_UPDATE_LIMIT`]) & the update operation isn't desired by the user.
 ///
 /// REF: [github/nabijaczleweli](https://github.com/nabijaczleweli/cargo-update/blob/master/src/ops/mod.rs)
-fn update_gitignore_repos(app_options: &Options) -> Result<(), Box<dyn StdErr>> {
+fn update_gitignore_repos(app_options: &mut Options) -> Result<(), Box<dyn StdErr>> {
     use git2::build::CheckoutBuilder;
+    use std::time::SystemTime;
 
     info!("Updating gitignore repo(s)");
 
@@ -394,6 +394,8 @@ fn update_gitignore_repos(app_options: &Options) -> Result<(), Box<dyn StdErr>> 
 
         info!("Updated gitignore repo: {}", repo_det.repo_path);
     }
+
+    app_options.state.last_update = SystemTime::now();
 
     Ok(())
 }

@@ -5,9 +5,15 @@
 use std::error::Error as StdErr;
 use std::fs::{File, OpenOptions};
 use std::io::prelude::*;
-use std::time::SystemTime;
+use std::time::{Duration, SystemTime};
 
 use serde::{Deserialize, Serialize};
+
+/// [`u64`] constant specifying the amount of seconds in a day.
+const SECONDS_IN_DAY: u64 = 60 * 60 * 24;
+
+/// [`std::time::Duration`] constant specifying the time to consider a repository's contents as stale.
+const REPO_UPDATE_LIMIT: Duration = Duration::from_secs(SECONDS_IN_DAY * 7);
 
 /// Constant specifying the location suffix of the last run state file from some parent directory
 /// (i.e.  system cache directory).
@@ -20,8 +26,8 @@ pub struct State {
     #[serde(skip)]
     path: String,
 
-    /// Timestamp of the last `ignore` execution.
-    pub last_run: SystemTime,
+    /// Timestamp of the last `ignore` `app::update_gitignore_repos` execution.
+    pub last_update: SystemTime,
 }
 
 /// [`std::Default`] trait implementation for [`config::State`].
@@ -29,13 +35,20 @@ impl Default for State {
     fn default() -> Self {
         Self {
             path: "".to_owned(),
-            last_run: SystemTime::now(),
+            last_update: SystemTime::now(),
         }
     }
 }
 
 /// Method implementations for [`config::State`].
 impl State {
+    pub fn new(now: &SystemTime) -> Self {
+        Self {
+            last_update: now.checked_sub(Duration::from_secs(1)).unwrap(),
+            ..Default::default()
+        }
+    }
+
     /// Parses state file contents & generates a [`State`] item.
     // Passing a reference to Config struct avoid taking ownership.
     pub fn parse(&mut self) -> Result<State, Box<dyn StdErr>> {
@@ -100,5 +113,23 @@ impl State {
         state_file.set_len(0)?;
 
         self.update_file(&mut state_file)
+    }
+
+    /// Checks for staleness of the cached gitignore template repositories.
+    ///
+    /// This function compares the current [`SystemTime`] to the last repository update time.
+    /// This function returns `true` (staleness state) if the time difference between now & the last
+    /// repo update exceed [`REPO_UPDATE_LIMIT`], or the cache's ".state" file doesn't exist.
+    /// Otherwise, this function returns` false`.
+    pub fn check_staleness(&self, now: &SystemTime) -> Result<bool, Box<dyn StdErr>> {
+        let last_update_duration = now.duration_since(self.last_update)?;
+        let is_stale = { (last_update_duration > REPO_UPDATE_LIMIT) || now.eq(&self.last_update) };
+
+        debug!(
+            "Last repo update: {:#?}, now: {:#?}, difference: {:#?}, is stale: {}",
+            self.last_update, now, last_update_duration, is_stale
+        );
+
+        Ok(is_stale)
     }
 }
