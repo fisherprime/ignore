@@ -173,7 +173,6 @@ impl Config {
     }
 }
 
-/// NOTE: The `config_create_test` failed for the master branch push on 2020-03-22.
 #[cfg(test)]
 mod tests {
     use super::*;
