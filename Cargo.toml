@@ -1,10 +1,13 @@
 [package]
 name = "ignore"
 version = "1.4.1"
+# documentation
 authors = ["fisherprime <mbock.ernie40@protonmail.ch>"]
 description = "A .gitignore file generator."
 edition = "2018"
+# homepage
 license = "MIT"
+repository = "https://gitlab.com/fisherprime/ignore"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
