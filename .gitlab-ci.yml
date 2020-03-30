@@ -2,6 +2,7 @@ image: rustlang/rust:nightly
 
 stages:
   - test
+  # - package
 
 variables:
   CARGO_HOME: $CI_PROJECT_DIR/.cargo
@@ -11,11 +12,17 @@ cache:
   paths:
     - .cargo/
     - target/
+
 test:
   stage: test
-  only:
-    - develop
   script:
     - cargo test --verbose
   allow_failure: false
-# IDEA: run tests on master
+
+# TODO: Setup crates.io account & stuff.
+# package:
+  # rules:
+    # - if: '$CI_COMMIT_BRANCH == "master"'
+      # when: on_success
+  # script:
+    # - cargo package
