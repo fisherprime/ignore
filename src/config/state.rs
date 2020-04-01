@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 
-//! The `state` module defines the last execution state's struct, trait & method implementations.
+//! The `state` module defines the last execution [`State`]'s struct, its trait & method
+//! implementations.
 
 use std::error::Error as StdErr;
 use std::fs::{File, OpenOptions};
@@ -31,7 +32,6 @@ pub struct State {
     pub last_update: SystemTime,
 }
 
-/// [`std::Default`] trait implementation for [`config::State`].
 impl Default for State {
     fn default() -> Self {
         Self {
@@ -41,8 +41,9 @@ impl Default for State {
     }
 }
 
-/// Method implementations for [`config::State`].
+/// Method implementations for [`State`].
 impl State {
+    /// Creates a new [`State`] from a provided [`SystemTime`] reference.
     pub fn new(now: &SystemTime) -> Self {
         Self {
             last_update: now.checked_sub(Duration::from_secs(1)).unwrap(),
@@ -102,7 +103,7 @@ impl State {
         Ok(())
     }
 
-    /// Saves the contents of the current [`config::State`] to the state file.
+    /// Saves the contents of the current [`State`] to the state file.
     pub fn save_file(&self) -> Result<(), Box<dyn StdErr>> {
         debug!("Updating file: {}", self.path);
 

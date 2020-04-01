@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: MIT
 
+//! The `utils` module defines utility functions common to modules of the config` module.
+
 use std::error::Error as StdErr;
 use std::fs::File;
 use std::path::Path;

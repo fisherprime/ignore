@@ -271,7 +271,8 @@ fn dedup_templates(
     Ok(insert_string)
 }
 
-/// Lists the names of projects, tools, languages, ... with cached gitignore templates.
+/// Lists the names of projects, tools, languages, ... from a locally cached gitignore template
+/// repository.
 fn list_templates(app_options: &mut Options) -> Result<(), Box<dyn StdErr>> {
     // FIXME: Review this function for a better approach if any.
 
@@ -400,7 +401,7 @@ fn update_gitignore_repos(app_options: &mut Options) -> Result<(), Box<dyn StdEr
     Ok(())
 }
 
-/// Clones a repository into a local cache directory.
+/// Clones a git repository into a local cache directory.
 fn clone_repository(
     app_options: &Options,
     repo_det: &RepoDetails,
@@ -450,8 +451,8 @@ fn generate_template_paths(app_options: &mut Options) -> Result<TemplatePaths, B
 
 /// Populates a [`TemplatePaths`] item with filepath entries.
 ///
-/// This function recurses on the contents of the cached gitignore template repositories,
-/// appending filepath entries to the passed [`TemplatePaths`] item for all available templates.
+/// This function recurses on the contents of the cached gitignore template repositories, appending
+/// filepath entries to the passed [`TemplatePaths`] item for all available templates.
 fn update_template_paths(dir: &Path, template_paths: &mut TemplatePaths) -> io::Result<()> {
     debug!("Updating template file paths for: {}", dir.display());
 

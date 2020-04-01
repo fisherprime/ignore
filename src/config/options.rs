@@ -1,5 +1,8 @@
 // SPDX-License-Identifier: MIT
 
+//! The `options` module defines elements necessary for the configuration of
+//! [`Options`] (contains the runtime environment config).
+
 use super::{config::Config, state::State};
 
 use std::error::Error as StdErr;
@@ -45,7 +48,7 @@ pub enum Operation {
     Else,
 }
 
-/// Method implementations for [`config::Options`].
+/// Method implementations for [`Options`].
 impl Options {
     /// Parses command arguments.
     pub fn parse() -> Result<Options, Box<dyn StdErr>> {

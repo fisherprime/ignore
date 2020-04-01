@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 
-//! The `config` module defines elements necessary for the setup and configuration of
-//! [`config::Config`] struct (part of runtime environment).
+//! The `config` module defines elements necessary for the setup and configuration of [`Config`]
+//! (part of runtime environment).
 
 use std::error::Error as StdErr;
 use std::fs::{File, OpenOptions};
@@ -35,7 +35,7 @@ pub struct Config {
 /// specific runtime options.
 #[derive(Deserialize, Serialize, PartialEq, Debug, Clone)]
 pub struct RepoConfig {
-    /// Directory containing gitignore repositories.
+    /// Directory containing cached gitignore repositories.
     pub repo_parent_dir: String,
 
     /// [`RepoDetails`] for multiple template repositories.
@@ -45,20 +45,19 @@ pub struct RepoConfig {
 /// `struct` containing the config file's repository specific runtime options.
 #[derive(Deserialize, Serialize, PartialEq, Debug, Clone)]
 pub struct RepoDetails {
-    /// Choice for automatically updating the cached repo.
+    /// Choice of automatic (cached) repository updates.
     pub auto_update: bool,
 
-    /// Choice for ignoring repository usage for any task.
+    /// Choice of ignoring repository usage in `ignore`'s operations.
     pub ignore: bool,
 
-    /// Relative path (to repo_parent_dir) of gitignore template repo to use.
+    /// Relative path (to [`RepoConfig::repo_parent_dir`]) of gitignore template repository.
     pub repo_path: String,
 
     /// URL of git repository containing gitignore templates.
     pub repo_url: String,
 }
 
-/// [`std::Default`] trait implementation for [`config::Config`].
 impl Default for Config {
     fn default() -> Self {
         let default_gitignore_repo: String = GITIGNORE_DEFAULT_REPO.to_owned();
@@ -103,7 +102,7 @@ impl Default for Config {
     }
 }
 
-/// Method implementations for [`config::Config`].
+/// Method implementations for [`Config`].
 impl Config {
     /// Parses config file contents & generates a [`Config`] item.
     pub fn parse(&mut self, config_file_path: &str) -> Result<Config, Box<dyn StdErr>> {
@@ -150,7 +149,7 @@ impl Config {
         Ok(self.clone())
     }
 
-    /// Updates the contents of the config file with the current [`config::Config`].
+    /// Updates the contents of the config file with the current [`Config`].
     fn update_file(&self, config_file: &mut File) -> Result<(), Box<dyn StdErr>> {
         config_file.write_all(toml::to_string(&self)?.as_bytes())?;
         debug!("Updated config file");
@@ -158,7 +157,7 @@ impl Config {
         Ok(())
     }
 
-    /// Saves the contents of the current [`config::Config`] to the config file.
+    /// Saves the contents of the current [`Config`] to the config file.
     pub fn save_file(&self) -> Result<(), Box<dyn StdErr>> {
         debug!("Updating file: {}", self.path);
 

@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
 
-//! The `errors` module defines `ignore`'s `Error` type, `ErrorKind` with their accompanying trait & method implementations.
+//! The `errors` module defines `ignore`'s [`Error`] type, [`ErrorKind`] with their accompanying trait & method implementations.
 
 use std::error::Error as StdErr;
 use std::fmt::{Display, Formatter, Result};
 
-/// `enum` containing the possible kinds of error for `ignore`.
+/// `enum` containing the possible kinds of errors for `ignore`.
 #[allow(dead_code)]
 #[derive(Debug)]
 pub enum ErrorKind {
@@ -22,7 +22,7 @@ pub enum ErrorKind {
 /// `struct` containing `ignore`'s error contents.
 #[derive(Debug)]
 pub struct Error {
-    /// The kind of error as enumerated in [`errors::ErrorKind`].
+    /// The kind of error as enumerated in [`ErrorKind`].
     kind: ErrorKind,
 
     /// The message for an [`ErrorKind::Other`] error.
@@ -33,9 +33,10 @@ pub struct Error {
     error: Option<Box<dyn StdErr + Send + Sync>>,
 }
 
-/// Method implementations for [`errors::Error`].
+/// Method implementations for [`Error`].
 impl Error {
-    /// Creates a new [`errors::Error`] from a supplied [`errors::ErrorKind`] & [`Into<Box<dyn std::error::Error>>`] (type that can be converted into a boxable error struct).
+    /// Creates a new [`Error`] from a supplied [`ErrorKind`] & `Into<Box<dyn std::error::Error>>`
+    /// (type that can be converted into a boxable error struct).
     #[allow(dead_code)]
     pub fn new<T>(error_kind: ErrorKind, error_source: T) -> Self
     where
@@ -48,13 +49,12 @@ impl Error {
         }
     }
 
-    /// Returns the error's [`errors::ErrorKind`].
+    /// Returns the error's [`ErrorKind`].
     pub fn kind(&self) -> &ErrorKind {
         &self.kind
     }
 }
 
-/// [`std::fmt::Display`] trait implementation for [`errors::Error`].
 impl Display for Error {
     fn fmt(&self, f: &mut Formatter) -> Result {
         let message = match self.kind() {
@@ -74,7 +74,6 @@ impl Display for Error {
     }
 }
 
-/// [`std::error::Error`] trait implementation for [`errors::Error`].
 impl StdErr for Error {
     fn source(&self) -> Option<&(dyn StdErr + 'static)> {
         match &self.error {
@@ -84,7 +83,6 @@ impl StdErr for Error {
     }
 }
 
-/// [`std::convert::From<errors::ErrorKind>`] trait implementation for [`errors::Error].
 impl From<ErrorKind> for Error {
     fn from(error_kind: ErrorKind) -> Self {
         Self {
@@ -95,7 +93,6 @@ impl From<ErrorKind> for Error {
     }
 }
 
-/// [`std::convert::From<String>`] trait implementation for [`errors::Error].
 impl From<String> for Error {
     fn from(message: String) -> Self {
         Self {

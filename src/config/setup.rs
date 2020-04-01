@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: MIT
 
+//! The `setup` module defines functions necessary for the setup of [`clap`] and [`fern`].
+
 use clap::ArgMatches;
 
 /// Configures [`clap`].
