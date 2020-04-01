@@ -85,6 +85,7 @@ pub fn setup_logger(matches: &ArgMatches) -> Result<(), fern::InitError> {
         1 => LevelFilter::Debug,
         2 => LevelFilter::Trace,
         _ => {
+            println!("[WARN] Invalid verbosity level, defaulting to none");
             verbose = false;
             LevelFilter::Off
         }
