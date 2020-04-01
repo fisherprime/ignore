@@ -1,0 +1,22 @@
+[repo]
+# Directory containing cached gitignore repositories.
+# The prefix to "ignore/repos" defaults to the system's cache directory.
+# repo_parent_dir = "/home/<username>/.cache/ignore/repos"
+
+[[repo.repo_dets]]
+# Choice for automatic (cached) repository updates.
+auto_update = false
+# Choice of ignoring repository usage in `ignore`'s operations.
+ignore = false
+# Relative path of the gitignore template repository.
+repo_path = "github/gitignore"
+# URL of git repositoy containing gitignore templates.
+repo_url = "https://github.com/github/gitignore"
+
+[[repo.repo_dets]]
+auto_update = false
+ignore = false
+repo_path = "github/toptal"
+repo_url = "https://github.com/toptal/gitignore"
+
+# vim: ft=toml
