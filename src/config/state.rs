@@ -21,6 +21,7 @@ const STATE_FILE_PATH_SUFFIX: &str = "ignore/.state";
 
 /// `struct` containing identifiers on the state of `ignore`'s last run.
 #[derive(Deserialize, Serialize, Debug, Clone)]
+#[serde(default)]
 pub struct State {
     /// Absolute path to the state file (not for the user).
     #[serde(skip)]

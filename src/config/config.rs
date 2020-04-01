@@ -21,13 +21,12 @@ const GITIGNORE_REPO_CACHE_SUBDIR: &str = "ignore/repos";
 
 /// `struct` containing the runtime options parsed from a config file.
 #[derive(Deserialize, Serialize, PartialEq, Debug, Clone)]
+#[serde(default)]
 pub struct Config {
     /// Absolute path to the state file (not for the user).
     #[serde(skip)]
     path: String,
 
-    /* /// Binary specific configuration options.
-     * pub core: CoreConfig, */
     /// Repository specific configuration options.
     pub repo: RepoConfig,
 }
@@ -144,6 +143,7 @@ impl Config {
         }
 
         info!("Config file is empty, using default config values");
+
         self.update_file(&mut config_file)?;
         debug!("Config: {:#?}", self);
 
