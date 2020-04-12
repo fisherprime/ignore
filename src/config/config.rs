@@ -135,13 +135,14 @@ impl Config {
                     return Ok(config);
                 }
                 Err(_) => {
-                    info!("Backing up config file");
+                    info!("Config file is invalid, backing up");
                     std::fs::copy(config_file_path, format!("{}.bak", config_file_path))?;
+                    config_file.set_len(0)?;
                 }
             }
+        } else {
+            info!("Config file is empty, using default config values");
         }
-
-        info!("Config file is empty, using default config values");
 
         self.update_file(&mut config_file)?;
         debug!("Config: {:#?}", self);
