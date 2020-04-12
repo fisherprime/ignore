@@ -1,5 +1,5 @@
 <a name=""></a>
-##  (2020-04-01)
+##  (2020-04-12)
 
 
 #### Features
@@ -54,6 +54,7 @@
 * **src/*:**
   *  Fix repo cache staleness check ([3a12d088](3a12d088))
   *  Add misc changes for the day ([f3ed2469](f3ed2469))
+* **src/config/config.rs:**  Differentiate config file parse errors ([217a3f11](217a3f11))
 
 #### Performance
 
