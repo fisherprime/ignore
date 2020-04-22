@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-//! The `config` module defines elements necessary for the setup and configuration of [`Config`]
+//! The `config_file` module defines elements necessary for the setup and configuration of [`Config`]
 //! (part of runtime environment).
 
 use std::error::Error as StdErr;

@@ -3,7 +3,7 @@
 //! The `options` module defines elements necessary for the configuration of
 //! [`Options`] (contains the runtime environment config).
 
-use super::{config::Config, state::State};
+use super::{config_file::Config, state::State};
 
 use std::error::Error as StdErr;
 use std::path::Path;
@@ -77,11 +77,9 @@ impl Options {
             if Path::new(path).exists() {
                 config_file_path = path.to_owned();
                 debug!("Using user supplied config file path");
-            } else {
-                if let Some(cfg_path) = default_config_path.into_os_string().to_str() {
-                    config_file_path = cfg_path.to_owned();
-                    debug!("Using default config file path");
-                }
+            } else if let Some(cfg_path) = default_config_path.into_os_string().to_str() {
+                config_file_path = cfg_path.to_owned();
+                debug!("Using default config file path");
             }
         } else {
             if let Some(cfg_path) = default_config_path.into_os_string().to_str() {

@@ -93,33 +93,30 @@ pub fn setup_logger(matches: &ArgMatches) -> Result<(), fern::InitError> {
         }
     };
 
-    match verbose {
-        true => {
-            Dispatch::new()
-                .format(|out, message, record| {
-                    out.finish(format_args!(
-                        "{}[{}][{}] {}",
-                        chrono::Local::now().format("[%Y-%m-%dT%H:%M:%S%z]"),
-                        record.target(),
-                        record.level(),
-                        message
-                    ))
-                })
-                .level(log_max_level)
-                .chain(std::io::stdout())
-                // .chain(fern::log_file("output.log")?)
-                .apply()?;
-        }
-        false => {
-            Dispatch::new()
-                .format(|out, message, record| {
-                    out.finish(format_args!("[{}] {}", record.level(), message))
-                })
-                .level(log_max_level)
-                .chain(std::io::stdout())
-                // .chain(fern::log_file("output.log")?)
-                .apply()?;
-        }
+    if verbose {
+        Dispatch::new()
+            .format(|out, message, record| {
+                out.finish(format_args!(
+                    "{}[{}][{}] {}",
+                    chrono::Local::now().format("[%Y-%m-%dT%H:%M:%S%z]"),
+                    record.target(),
+                    record.level(),
+                    message
+                ))
+            })
+            .level(log_max_level)
+            .chain(std::io::stdout())
+            // .chain(fern::log_file("output.log")?)
+            .apply()?;
+    } else {
+        Dispatch::new()
+            .format(|out, message, record| {
+                out.finish(format_args!("[{}] {}", record.level(), message))
+            })
+            .level(log_max_level)
+            .chain(std::io::stdout())
+            // .chain(fern::log_file("output.log")?)
+            .apply()?;
     }
 
     debug!("Done setting up logger");

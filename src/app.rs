@@ -8,7 +8,7 @@
  * Note: `super::` & `self::` are relative to the current module while `crate::` is relative to the
  * crate root.
  */
-use crate::config::{config::RepoDetails, options::Operation, options::Options};
+use crate::config::{config_file::RepoDetails, options::Operation, options::Options};
 use crate::errors::{Error, ErrorKind};
 
 use std::collections::btree_map::BTreeMap;
@@ -122,7 +122,7 @@ fn generate_gitignore(app_options: &mut Options) -> Result<(), Box<dyn StdErr>> 
     consolidation_file.write_all(consolidation_string.as_bytes())?;
     info!("Generated gitignore: {}", app_options.output_file);
 
-    return Ok(());
+    Ok(())
 }
 
 /// Concatenates gitignore template files specified by the user.
@@ -130,7 +130,7 @@ fn generate_gitignore(app_options: &mut Options) -> Result<(), Box<dyn StdErr>> 
 /// This function acts on a [`TemplatePaths`] item for the template arguments specified by a user,
 /// consolidating the filespaths listed within the item.
 fn concatenate_templates(
-    requested_templates: &Vec<String>,
+    requested_templates: &[String],
     available_templates: TemplatePaths,
 ) -> Result<String, Box<dyn StdErr>> {
     let mut consolidation_string = String::new();
@@ -234,8 +234,8 @@ fn dedup_templates(
     let primary_content = template_vec[0].clone();
     let mut insert_string = String::new();
 
-    for index in 1..template_vec.len() {
-        for line in template_vec[index].lines() {
+    for template_file in template_vec.iter().skip(1) {
+        for line in template_file.lines() {
             let trimmed_line = line.trim();
 
             let invalid_line = {
@@ -299,21 +299,21 @@ fn list_templates(app_options: &mut Options) -> Result<(), Box<dyn StdErr>> {
             max_item_length = len
         }
     }
-    max_item_length = max_item_length + 1;
+    max_item_length += 1;
     debug!("Max list item length: {}", max_item_length);
 
     for key in template_identifiers.iter() {
-        let mut key_string = format!("{}", key);
+        let mut key_string = key.to_string();
         for _ in key.len()..max_item_length {
             key_string.push_str(" ");
         }
 
         if template_list_line_len + max_item_length <= TEMPLATE_LIST_OUTPUT_LIMIT {
             template_list.push_str(&key_string);
-            template_list_line_len = template_list_line_len + max_item_length
+            template_list_line_len += max_item_length
         } else {
             template_list.push_str(&format!("\n{}", key_string));
-            template_list_line_len = 0 + max_item_length
+            template_list_line_len = max_item_length
         }
     }
 
@@ -338,9 +338,13 @@ fn parse_templates(app_options: &mut Options) -> Result<TemplatePaths, Box<dyn S
     let template_paths = generate_template_paths(app_options)?;
 
     for template in template_list {
-        template_paths.get(&template).map(|t_paths| {
+        // NOTE: The `clippy::option_map_unit_fn` warning was thrown for using a `map` on the
+        // below operation.
+        // Using `if let` is preferred for readability when a function doesn't return anything
+        // meaningful: `std::unit`/`()`.
+        if let Some(t_paths) = template_paths.get(&template) {
             *available_templates.entry(template).or_default() = t_paths.to_vec();
-        });
+        };
     }
 
     debug!("Selected available template options");
