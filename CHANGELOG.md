@@ -1,6 +1,43 @@
 <a name=""></a>
-##  (2020-04-12)
+##  (2020-04-22)
 
+
+#### Bug Fixes
+
+* ***:**  Update filetype removal ([0d5463c0](0d5463c0))
+* **.gitlab-ci.yml:**
+  *  Remove useless docs task ([ead40620](ead40620))
+  *  Remove unnecessary build job ([b2b743b3](b2b743b3))
+  *  Fix after_script spelling error ([cd8c0f3c](cd8c0f3c))
+* **Cargo.toml:**  Correct erroneous version bump ([d108400d](d108400d))
+* **app.rs:**
+  *  Remove directories from template list ([1464c853](1464c853))
+  *  Fix repository update function ([afd88a19](afd88a19))
+  *  Fix consolidation file overwrite ([a1869487](a1869487))
+* **config.rs:**
+  *  Add state file creation ([2d4ea271](2d4ea271))
+  *  Remove lifetimes & change to String ([c1dfd9d9](c1dfd9d9))
+  *  Fix WIP linter warnings ([19f7d843](19f7d843))
+* **src/*:**
+  *  Lint & fix with `clippy` ([4d6407c1](4d6407c1))
+  *  Fix repo cache staleness check ([3a12d088](3a12d088))
+  *  Add misc changes for the day ([f3ed2469](f3ed2469))
+* **src/config/config.rs:**  Differentiate config file parse errors ([217a3f11](217a3f11))
+
+#### Performance
+
+* ***:**
+  *  Change Config to a member of Options ([489f53c7](489f53c7))
+  *  Move clap create (+macro) loading to root ([627f2345](627f2345))
+  *  Move serde crate loading to config.rs ([202a40cc](202a40cc))
+  *  Add Cargo.lock to .gitignore ([4cf2f01d](4cf2f01d))
+* **Config.toml:**  Remove ref to unused crate ([e65a0407](e65a0407))
+* **config.re:**  Comment out unused crate ([199ce723](199ce723))
+* **config.rs:**
+  *  Remove app_config cloning ([eeac5794](eeac5794))
+  *  Rework functions into struct methods ([9241a390](9241a390))
+  *  Section the Config struct ([d141d133](d141d133))
+* **main.rs:**  Replace unwrap with expect ([cb3302d0](cb3302d0))
 
 #### Features
 
@@ -34,39 +71,3 @@
 * **src/app.rs:**  Add templates used output ([9dda3380](9dda3380))
 * **src/config/*:**  Add `#[serde(default)]` attribute to `struct`s ([83ec0b66](83ec0b66))
 * **src/config/setup.rs:**  Add warning on invalid verbosity level ([3c0b7b2f](3c0b7b2f))
-
-#### Bug Fixes
-
-* ***:**  Update filetype removal ([0d5463c0](0d5463c0))
-* **.gitlab-ci.yml:**
-  *  Remove useless docs task ([ead40620](ead40620))
-  *  Remove unnecessary build job ([b2b743b3](b2b743b3))
-  *  Fix after_script spelling error ([cd8c0f3c](cd8c0f3c))
-* **Cargo.toml:**  Correct erroneous version bump ([d108400d](d108400d))
-* **app.rs:**
-  *  Remove directories from template list ([1464c853](1464c853))
-  *  Fix repository update function ([afd88a19](afd88a19))
-  *  Fix consolidation file overwrite ([a1869487](a1869487))
-* **config.rs:**
-  *  Add state file creation ([2d4ea271](2d4ea271))
-  *  Remove lifetimes & change to String ([c1dfd9d9](c1dfd9d9))
-  *  Fix WIP linter warnings ([19f7d843](19f7d843))
-* **src/*:**
-  *  Fix repo cache staleness check ([3a12d088](3a12d088))
-  *  Add misc changes for the day ([f3ed2469](f3ed2469))
-* **src/config/config.rs:**  Differentiate config file parse errors ([217a3f11](217a3f11))
-
-#### Performance
-
-* ***:**
-  *  Change Config to a member of Options ([489f53c7](489f53c7))
-  *  Move clap create (+macro) loading to root ([627f2345](627f2345))
-  *  Move serde crate loading to config.rs ([202a40cc](202a40cc))
-  *  Add Cargo.lock to .gitignore ([4cf2f01d](4cf2f01d))
-* **Config.toml:**  Remove ref to unused crate ([e65a0407](e65a0407))
-* **config.re:**  Comment out unused crate ([199ce723](199ce723))
-* **config.rs:**
-  *  Remove app_config cloning ([eeac5794](eeac5794))
-  *  Rework functions into struct methods ([9241a390](9241a390))
-  *  Section the Config struct ([d141d133](d141d133))
-* **main.rs:**  Replace unwrap with expect ([cb3302d0](cb3302d0))
