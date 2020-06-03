@@ -38,6 +38,9 @@ const TEMPLATE_LIST_OUTPUT_LIMIT: usize = 78;
 /// Const specifying the file content delimiter used.
 const FILE_CONTENT_DELIMITER: &str = "# ----";
 
+/// Const specifying the delimiter for supplementary template content
+const TEMPLATE_SUPPLEMENT_DELIMITER: &str = "# ****";
+
 /// Handles the execution of `ignore`'s functions.
 ///
 /// Using the parsed [`Options`], this function runs a task specified by the user in `ignore`'s
@@ -249,8 +252,8 @@ fn dedup_templates(
                 if insert_string.is_empty() {
                     insert_string.push_str(&format!("{}\n", primary_content));
                     insert_string.push_str(&format!(
-                        "# {}, supplementary content\n{}\n",
-                        template, FILE_CONTENT_DELIMITER
+                        "# {} supplementary content\n{}\n",
+                        template, TEMPLATE_SUPPLEMENT_DELIMITER
                     ));
                 }
                 insert_string.push_str(&format!("{}\n", trimmed_line));
@@ -262,7 +265,7 @@ fn dedup_templates(
         return Ok(primary_content);
     }
 
-    insert_string.push_str(&format!("{}\n", FILE_CONTENT_DELIMITER));
+    insert_string.push_str(&format!("{}\n", TEMPLATE_SUPPLEMENT_DELIMITER));
     info!(
         "Caveman-like deduplication performed on the `{}` gitignore template, review the output",
         template
