@@ -1,5 +1,5 @@
 <a name=""></a>
-##  (2020-04-22)
+##  (2020-06-03)
 
 
 #### Bug Fixes
@@ -22,22 +22,8 @@
   *  Lint & fix with `clippy` ([4d6407c1](4d6407c1))
   *  Fix repo cache staleness check ([3a12d088](3a12d088))
   *  Add misc changes for the day ([f3ed2469](f3ed2469))
+* **src/app.rs:**  Replace delimiter for supplementary template content ([9136dd89](9136dd89))
 * **src/config/config.rs:**  Differentiate config file parse errors ([217a3f11](217a3f11))
-
-#### Performance
-
-* ***:**
-  *  Change Config to a member of Options ([489f53c7](489f53c7))
-  *  Move clap create (+macro) loading to root ([627f2345](627f2345))
-  *  Move serde crate loading to config.rs ([202a40cc](202a40cc))
-  *  Add Cargo.lock to .gitignore ([4cf2f01d](4cf2f01d))
-* **Config.toml:**  Remove ref to unused crate ([e65a0407](e65a0407))
-* **config.re:**  Comment out unused crate ([199ce723](199ce723))
-* **config.rs:**
-  *  Remove app_config cloning ([eeac5794](eeac5794))
-  *  Rework functions into struct methods ([9241a390](9241a390))
-  *  Section the Config struct ([d141d133](d141d133))
-* **main.rs:**  Replace unwrap with expect ([cb3302d0](cb3302d0))
 
 #### Features
 
@@ -71,3 +57,18 @@
 * **src/app.rs:**  Add templates used output ([9dda3380](9dda3380))
 * **src/config/*:**  Add `#[serde(default)]` attribute to `struct`s ([83ec0b66](83ec0b66))
 * **src/config/setup.rs:**  Add warning on invalid verbosity level ([3c0b7b2f](3c0b7b2f))
+
+#### Performance
+
+* ***:**
+  *  Change Config to a member of Options ([489f53c7](489f53c7))
+  *  Move clap create (+macro) loading to root ([627f2345](627f2345))
+  *  Move serde crate loading to config.rs ([202a40cc](202a40cc))
+  *  Add Cargo.lock to .gitignore ([4cf2f01d](4cf2f01d))
+* **Config.toml:**  Remove ref to unused crate ([e65a0407](e65a0407))
+* **config.re:**  Comment out unused crate ([199ce723](199ce723))
+* **config.rs:**
+  *  Remove app_config cloning ([eeac5794](eeac5794))
+  *  Rework functions into struct methods ([9241a390](9241a390))
+  *  Section the Config struct ([d141d133](d141d133))
+* **main.rs:**  Replace unwrap with expect ([cb3302d0](cb3302d0))
