@@ -24,7 +24,7 @@ macro_rules! absolute_repo_path {
     ($parent:expr, $base:expr) => {
         format!(
             "{}/{}",
-            $parent.config.repo.repo_parent_dir, $base.repo_path
+            $parent.config.repo_config.repo_cache_dir, $base.repo_path
         );
     };
 }
@@ -64,21 +64,21 @@ const TEMPLATE_SUPPLEMENT_DELIMITER: &str = "# ****";
 pub fn run(mut app_options: Options) -> Result<(), Box<dyn StdErr>> {
     if app_options.needs_update {
         update_gitignore_repos(&mut app_options)?;
-        if app_options.operation == Operation::UpdateRepo {
+        if app_options.operation == Operation::UpdateRepositories {
             app_options.config.save_file()?;
-            return app_options.state.save_file();
+            return app_options.state.save_to_file();
         }
     }
 
     match app_options.operation {
         Operation::GenerateGitignore => generate_gitignore(&mut app_options)?,
-        Operation::ListTemplates => list_templates(&mut app_options)?,
-        Operation::UpdateRepo => update_gitignore_repos(&mut app_options)?,
+        Operation::ListAvailableTemplates => list_templates(&mut app_options)?,
+        Operation::UpdateRepositories => update_gitignore_repos(&mut app_options)?,
         Operation::Else => info!("No operation specified, this shouldn't have happened"),
     }
 
     app_options.config.save_file()?;
-    app_options.state.save_file()
+    app_options.state.save_to_file()
 }
 
 /// Consolidates locally cached gitignore template files.
@@ -118,12 +118,12 @@ fn generate_gitignore(app_options: &mut Options) -> Result<(), Box<dyn StdErr>> 
         .read(true)
         .write(true)
         .create(true)
-        .open(&app_options.output_file)?;
+        .open(&app_options.gitignore_output_file)?;
     debug!("Opened gitignore template consolidation file");
 
     consolidation_file.set_len(0)?;
     consolidation_file.write_all(consolidation_string.as_bytes())?;
-    info!("Generated gitignore: {}", app_options.output_file);
+    info!("Generated gitignore: {}", app_options.gitignore_output_file);
 
     Ok(())
 }
@@ -246,18 +246,19 @@ fn dedup_templates(
                     || primary_content.contains(trimmed_line)
                     || insert_string.contains(trimmed_line)
             };
+
             if invalid_line {
                 continue;
-            } else {
-                if insert_string.is_empty() {
-                    insert_string.push_str(&format!("{}\n", primary_content));
-                    insert_string.push_str(&format!(
-                        "# {} supplementary content\n{}\n",
-                        template, TEMPLATE_SUPPLEMENT_DELIMITER
-                    ));
-                }
-                insert_string.push_str(&format!("{}\n", trimmed_line));
             }
+
+            if insert_string.is_empty() {
+                insert_string.push_str(&format!("{}\n", primary_content));
+                insert_string.push_str(&format!(
+                    "# {} supplementary content\n{}\n",
+                    template, TEMPLATE_SUPPLEMENT_DELIMITER
+                ));
+            }
+            insert_string.push_str(&format!("{}\n", trimmed_line));
         }
     }
 
@@ -371,11 +372,11 @@ fn update_gitignore_repos(app_options: &mut Options) -> Result<(), Box<dyn StdEr
 
     let mut checkout = CheckoutBuilder::new();
 
-    for repo_det in app_options.config.repo.repo_dets.iter() {
+    for repo_det in app_options.config.repo_config.repo_details.iter() {
         /* let repo: Repository;
          * let fetch_head: Object; */
 
-        if !repo_det.auto_update && app_options.operation != Operation::UpdateRepo {
+        if !repo_det.auto_update && app_options.operation != Operation::UpdateRepositories {
             continue;
         }
 
@@ -421,7 +422,7 @@ fn clone_repository(
 
     DirBuilder::new()
         .recursive(true)
-        .create(&app_options.config.repo.repo_parent_dir)?;
+        .create(&app_options.config.repo_config.repo_cache_dir)?;
 
     // NOTE: Wrapped in `Ok` to allow for the conversion of `git::error::Error` to `Box<dyn std::error::Error>`.
     Ok(Repository::clone_recurse(
@@ -437,7 +438,7 @@ fn clone_repository(
 fn generate_template_paths(app_options: &mut Options) -> Result<TemplatePaths, Box<dyn StdErr>> {
     let mut template_paths = TemplatePaths::new();
 
-    for repo_det in app_options.config.repo.repo_dets.iter() {
+    for repo_det in app_options.config.repo_config.repo_details.iter() {
         if repo_det.ignore {
             continue;
         }

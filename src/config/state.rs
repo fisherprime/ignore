@@ -26,7 +26,7 @@ const STATE_FILE_PATH_SUFFIX: &str = "ignore/.state";
 pub struct State {
     /// Absolute path to the state file (not for the user).
     #[serde(skip)]
-    path: String,
+    state_path: String,
 
     /// Timestamp of the last `ignore` `app::update_gitignore_repos` execution.
     pub last_update: SystemTime,
@@ -35,7 +35,7 @@ pub struct State {
 impl Default for State {
     fn default() -> Self {
         Self {
-            path: "".to_owned(),
+            state_path: "".to_owned(),
             last_update: SystemTime::now(),
         }
     }
@@ -70,7 +70,7 @@ impl State {
             .write(true)
             .create(true)
             .open(state_file_path.clone())?;
-        self.path = state_file_path
+        self.state_path = state_file_path
             .into_os_string()
             .to_str()
             .unwrap()
@@ -79,7 +79,7 @@ impl State {
         if state_file.read_to_string(&mut state_content).unwrap_or(0) > 0 {
             if let Ok(state) = toml::from_str(state_content.trim()) {
                 let internal_state = State {
-                    path: self.path.clone(),
+                    state_path: self.state_path.clone(),
                     ..state
                 };
                 debug!("Done parsing state file, state: {:#?}", internal_state);
@@ -104,14 +104,14 @@ impl State {
     }
 
     /// Saves the contents of the current [`State`] to the state file.
-    pub fn save_file(&self) -> Result<(), Box<dyn StdErr>> {
-        debug!("Updating file: {}", self.path);
+    pub fn save_to_file(&self) -> Result<(), Box<dyn StdErr>> {
+        debug!("Updating file: {}", self.state_path);
 
         let mut state_file = OpenOptions::new()
             .read(true)
             .write(true)
             .create(true)
-            .open(&self.path)?;
+            .open(&self.state_path)?;
         state_file.set_len(0)?;
 
         self.update_file(&mut state_file)

@@ -15,9 +15,9 @@ use serde::{Deserialize, Serialize};
 /// An alternative/supplement is: "https://github.com/toptal/gitignore" (gitignore.io)'s templates.
 const GITIGNORE_DEFAULT_REPO: &str = "https://github.com/github/gitignore";
 
-/// Constant specifying the cache subdirectory within the system's cache directory to store
-/// gitignore template repositories.
-const GITIGNORE_REPO_CACHE_SUBDIR: &str = "ignore/repos";
+/// Constant specifying the repository cache subdirectory within the system's cache directory --for
+/// storing gitignore template repositories--.
+const GITIGNORE_REPO_CACHE_DIR: &str = "ignore/repos";
 
 /// `struct` containing the runtime options parsed from a config file.
 #[derive(Deserialize, Serialize, PartialEq, Debug, Clone)]
@@ -25,10 +25,10 @@ const GITIGNORE_REPO_CACHE_SUBDIR: &str = "ignore/repos";
 pub struct Config {
     /// Absolute path to the state file (not for the user).
     #[serde(skip)]
-    path: String,
+    config_path: String,
 
     /// Repository specific configuration options.
-    pub repo: RepoConfig,
+    pub repo_config: RepoConfig,
 }
 
 /// `struct` containing the config file's common repository options and an array of repository
@@ -36,10 +36,10 @@ pub struct Config {
 #[derive(Deserialize, Serialize, PartialEq, Debug, Clone)]
 pub struct RepoConfig {
     /// Directory containing cached gitignore repositories.
-    pub repo_parent_dir: String,
+    pub repo_cache_dir: String,
 
     /// [`RepoDetails`] for multiple template repositories.
-    pub repo_dets: Vec<RepoDetails>,
+    pub repo_details: Vec<RepoDetails>,
 }
 
 /// `struct` containing the config file's repository specific runtime options.
@@ -63,7 +63,7 @@ impl Default for Config {
         let default_gitignore_repo: String = GITIGNORE_DEFAULT_REPO.to_owned();
         let r_path: String;
 
-        let mut r_parent_dir: PathBuf;
+        let mut r_cache_dir: PathBuf;
 
         let gitignore_repo_path = Path::new(&default_gitignore_repo);
         let mut gitignore_repo_components: Vec<_> = gitignore_repo_path
@@ -84,14 +84,14 @@ impl Default for Config {
             );
         }
 
-        r_parent_dir = dirs::cache_dir().expect("Error obtaining system's cache directory");
-        r_parent_dir.push(GITIGNORE_REPO_CACHE_SUBDIR);
+        r_cache_dir = dirs::cache_dir().expect("Error obtaining system's cache directory");
+        r_cache_dir.push(GITIGNORE_REPO_CACHE_DIR);
 
         Self {
-            path: "".to_owned(),
-            repo: RepoConfig {
-                repo_parent_dir: r_parent_dir.into_os_string().into_string().unwrap(),
-                repo_dets: vec![RepoDetails {
+            config_path: "".to_owned(),
+            repo_config: RepoConfig {
+                repo_cache_dir: r_cache_dir.into_os_string().into_string().unwrap(),
+                repo_details: vec![RepoDetails {
                     auto_update: false,
                     ignore: false,
                     repo_url: default_gitignore_repo,
@@ -110,7 +110,7 @@ impl Config {
 
         debug!("Parsing config file");
 
-        let mut config_string = String::new();
+        let mut config_file_contents = String::new();
 
         if !Path::new(&config_file_path).exists() {
             create_file(&Path::new(&config_file_path))?;
@@ -121,13 +121,13 @@ impl Config {
             .write(true)
             .create(true)
             .open(config_file_path)?;
-        self.path = config_file_path.to_owned();
+        self.config_path = config_file_path.to_owned();
 
-        if config_file.read_to_string(&mut config_string).unwrap_or(0) > 0 {
-            match toml::from_str(config_string.trim()) {
+        if config_file.read_to_string(&mut config_file_contents).unwrap_or(0) > 0 {
+            match toml::from_str(config_file_contents.trim()) {
                 Ok(cfg) => {
                     let config = Config {
-                        path: self.path.clone(),
+                        config_path: self.config_path.clone(),
                         ..cfg
                     };
                     debug!("Done parsing config file, config: {:#?}", config);
@@ -160,13 +160,13 @@ impl Config {
 
     /// Saves the contents of the current [`Config`] to the config file.
     pub fn save_file(&self) -> Result<(), Box<dyn StdErr>> {
-        debug!("Updating file: {}", self.path);
+        debug!("Updating file: {}", self.config_path);
 
         let mut config_file = OpenOptions::new()
             .read(true)
             .write(true)
             .create(true)
-            .open(&self.path)?;
+            .open(&self.config_path)?;
         config_file.set_len(0)?;
 
         self.update_file(&mut config_file)
@@ -200,11 +200,11 @@ mod tests {
         let mut parent_dir = dirs::cache_dir().unwrap();
         parent_dir.push("ignore/repos");
 
-        let hardcode_config = Config {
-            path: "".to_owned(),
-            repo: RepoConfig {
-                repo_parent_dir: parent_dir.into_os_string().into_string().unwrap(),
-                repo_dets: vec![RepoDetails {
+        let test_config = Config {
+            config_path: "".to_owned(),
+            repo_config: RepoConfig {
+                repo_cache_dir: parent_dir.into_os_string().into_string().unwrap(),
+                repo_details: vec![RepoDetails {
                     auto_update: false,
                     ignore: false,
                     repo_url: GITIGNORE_DEFAULT_REPO.to_owned(),
@@ -213,7 +213,7 @@ mod tests {
             },
         };
 
-        assert!(hardcode_config.repo.eq(&config.repo));
+        assert!(test_config.eq(&config));
     }
 
     #[test]

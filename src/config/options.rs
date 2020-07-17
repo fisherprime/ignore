@@ -27,7 +27,7 @@ pub struct Options {
     pub needs_update: bool,
 
     /// Path to output generated gitignore.
-    pub output_file: String,
+    pub gitignore_output_file: String,
 
     /// List of templates user desires to use in gitignore generation.
     pub templates: Vec<String>,
@@ -37,13 +37,11 @@ pub struct Options {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Operation {
     /// Option to list available templates.
-    ListTemplates,
+    ListAvailableTemplates,
     /// Option to update repository.
-    UpdateRepo,
+    UpdateRepositories,
     /// Option to generate gitignore file.
     GenerateGitignore,
-    /* /// Option to skip running any operation.
-     * Skip, */
     /// Option for unknown operations.
     Else,
 }
@@ -69,20 +67,20 @@ impl Options {
 
         setup_logger(&matches)?;
 
-        let mut default_config_path =
+        let mut default_config_file_path =
             dirs::config_dir().expect("Error obtaining system's config directory");
-        default_config_path.push("ignore/config.toml");
+        default_config_file_path.push("ignore/config.toml");
 
         if let Some(path) = matches.value_of("config") {
             if Path::new(path).exists() {
                 config_file_path = path.to_owned();
                 debug!("Using user supplied config file path");
-            } else if let Some(cfg_path) = default_config_path.into_os_string().to_str() {
+            } else if let Some(cfg_path) = default_config_file_path.into_os_string().to_str() {
                 config_file_path = cfg_path.to_owned();
                 debug!("Using default config file path");
             }
         } else {
-            if let Some(cfg_path) = default_config_path.into_os_string().to_str() {
+            if let Some(cfg_path) = default_config_file_path.into_os_string().to_str() {
                 config_file_path = cfg_path.to_owned();
             }
 
@@ -94,13 +92,13 @@ impl Options {
             app_config
         });
 
-        let is_stale = app_state.check_staleness(&now)?;
+        let repo_staleness = app_state.check_staleness(&now)?;
         let app_options = Options {
             config: app_config,
             state: app_state,
             operation: get_operation(&matches),
-            needs_update: is_stale,
-            output_file: matches.value_of("output").unwrap_or("gitignore").to_owned(),
+            needs_update: repo_staleness,
+            gitignore_output_file: matches.value_of("output").unwrap_or("gitignore").to_owned(),
             templates: match matches.values_of("template") {
                 Some(templates_arg) => templates_arg
                     .map(|tmpl| tmpl.to_owned())
@@ -127,11 +125,11 @@ pub fn get_operation(matches: &ArgMatches) -> Operation {
     }
 
     if matches.is_present("list") {
-        return Operation::ListTemplates;
+        return Operation::ListAvailableTemplates;
     }
 
     if matches.is_present("update") {
-        return Operation::UpdateRepo;
+        return Operation::UpdateRepositories;
     }
 
     Operation::Else
