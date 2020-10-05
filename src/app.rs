@@ -142,7 +142,7 @@ fn concatenate_templates(
 
     if available_templates.is_empty() {
         warn!(
-        "Neither of the specified template(s) could not be located (names are case sensitive): {:?}",
+        "None of the specified template(s) could not be located (names are case sensitive): {:?}",
         requested_templates);
         return Err(Box::new(Error::from(ErrorKind::MissingTemplates)));
     }
@@ -199,7 +199,7 @@ fn concatenate_templates(
 
     if templates_used.is_empty() {
         warn!(
-        "Neither of the specified template(s) could not be located (names are case sensitive): {:?}",
+        "None of the specified template(s) could not be located (names are case sensitive): {:?}",
         requested_templates);
         return Err(Box::new(Error::from(ErrorKind::MissingTemplates)));
     }
