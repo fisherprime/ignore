@@ -14,7 +14,7 @@ repository = "https://gitlab.com/fisherprime/ignore"
 [dependencies]
 chrono = "0.4"
 clap = "2.33"
-dirs = "3.0"
+dirs-next = "2.0"
 fern = "0.6"
 git2 = "0.13"
 lazy_static = "1.4.0" # For lazily (only one) evaluated statics.

@@ -66,25 +66,25 @@ impl Default for Config {
         let mut r_cache_dir: PathBuf;
 
         let gitignore_repo_path = Path::new(&default_gitignore_repo);
-        let mut gitignore_repo_components: Vec<_> = gitignore_repo_path
+        let mut gitignore_repo_path_components: Vec<_> = gitignore_repo_path
             .components()
             .map(|comp| comp.as_os_str())
             .collect();
 
-        if gitignore_repo_components.len().lt(&2) {
+        if gitignore_repo_path_components.len().lt(&2) {
             r_path = format!(
                 "undefined/{}",
-                gitignore_repo_components.pop().unwrap().to_str().unwrap()
+                gitignore_repo_path_components.pop().unwrap().to_str().unwrap()
             );
         } else {
             r_path = format!(
                 "{1}/{0}",
-                gitignore_repo_components.pop().unwrap().to_str().unwrap(),
-                gitignore_repo_components.pop().unwrap().to_str().unwrap()
+                gitignore_repo_path_components.pop().unwrap().to_str().unwrap(),
+                gitignore_repo_path_components.pop().unwrap().to_str().unwrap()
             );
         }
 
-        r_cache_dir = dirs::cache_dir().expect("Error obtaining system's cache directory");
+        r_cache_dir = dirs_next::cache_dir().expect("Error obtaining system's cache directory");
         r_cache_dir.push(GITIGNORE_REPO_CACHE_DIR);
 
         Self {
@@ -123,7 +123,11 @@ impl Config {
             .open(config_file_path)?;
         self.config_path = config_file_path.to_owned();
 
-        if config_file.read_to_string(&mut config_file_contents).unwrap_or(0) > 0 {
+        if config_file
+            .read_to_string(&mut config_file_contents)
+            .unwrap_or(0)
+            > 0
+        {
             match toml::from_str(config_file_contents.trim()) {
                 Ok(cfg) => {
                     let config = Config {
@@ -197,7 +201,7 @@ mod tests {
     fn config_var_create_test() {
         let config = Config::default();
 
-        let mut parent_dir = dirs::cache_dir().unwrap();
+        let mut parent_dir = dirs_next::cache_dir().unwrap();
         parent_dir.push("ignore/repos");
 
         let test_config = Config {
@@ -221,7 +225,7 @@ mod tests {
     fn config_file_parse_test() {
         let mut config = Config::default();
 
-        let mut config_path = dirs::config_dir().unwrap();
+        let mut config_path = dirs_next::config_dir().unwrap();
         config_path.push("ignore/config.toml");
 
         // Create default config file should it not exist.

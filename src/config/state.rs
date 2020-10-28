@@ -56,7 +56,7 @@ impl State {
     pub fn parse(&mut self) -> Result<State, Box<dyn StdErr>> {
         use super::utils::create_file;
 
-        let mut state_file_path = dirs::cache_dir().unwrap();
+        let mut state_file_path = dirs_next::cache_dir().unwrap();
         state_file_path.push(STATE_FILE_PATH_SUFFIX);
 
         let mut state_content = String::new();

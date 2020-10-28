@@ -68,7 +68,7 @@ impl Options {
         setup_logger(&matches)?;
 
         let mut default_config_file_path =
-            dirs::config_dir().expect("Error obtaining system's config directory");
+            dirs_next::config_dir().expect("Error obtaining system's config directory");
         default_config_file_path.push("ignore/config.toml");
 
         if let Some(path) = matches.value_of("config") {
