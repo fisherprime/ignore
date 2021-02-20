@@ -23,7 +23,7 @@ pub struct Options {
     /// Exclusive operation specified by user.
     pub operation: Operation,
 
-    /// Option used to auto-update cached gitignore tempalate repositories.
+    /// Option used to auto-update cached gitignore template repositories.
     pub needs_update: bool,
 
     /// Path to output generated gitignore.

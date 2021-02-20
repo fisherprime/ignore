@@ -131,7 +131,7 @@ fn generate_gitignore(app_options: &mut Options) -> Result<(), Box<dyn StdErr>> 
 /// Concatenates gitignore template files specified by the user.
 ///
 /// This function acts on a [`TemplatePaths`] item for the template arguments specified by a user,
-/// consolidating the filespaths listed within the item.
+/// consolidating the file paths listed within the item.
 fn concatenate_templates(
     requested_templates: &[String],
     available_templates: TemplatePaths,
@@ -275,7 +275,7 @@ fn dedup_templates(
     Ok(insert_string)
 }
 
-/// Lists the names of projects, tools, languages, ... from a locally cached gitignore template
+/// Lists the names of projects, tools, languages,… from a locally cached gitignore template
 /// repository.
 fn list_templates(app_options: &mut Options) -> Result<(), Box<dyn StdErr>> {
     // FIXME: Review this function for a better approach if any.
@@ -494,7 +494,7 @@ fn update_template_paths(dir: &Path, template_paths: &mut TemplatePaths) -> io::
     Ok(())
 }
 
-/// Removes the filetype from a pathname.
+/// Removes the file type from a pathname.
 ///
 /// This function calls [`std::path::Path`] operations to return a filename without the extension.
 fn remove_filetype(path: &Path) -> String {

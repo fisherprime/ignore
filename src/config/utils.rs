@@ -8,7 +8,7 @@ use std::path::Path;
 
 /// Creates a file defined by a filepath.
 ///
-/// This function builds a filepath's directory hierarchy (if necessary) then creates the file
+/// This function builds a file path's directory hierarchy (if necessary) then creates the file
 /// specified by the path.
 pub fn create_file(file_path: &Path) -> Result<(), Box<dyn StdErr>> {
     use std::fs::DirBuilder;
