@@ -74,13 +74,25 @@ impl Default for Config {
         if gitignore_repo_path_components.len().lt(&2) {
             r_path = format!(
                 "undefined/{}",
-                gitignore_repo_path_components.pop().unwrap().to_str().unwrap()
+                gitignore_repo_path_components
+                    .pop()
+                    .unwrap()
+                    .to_str()
+                    .unwrap()
             );
         } else {
             r_path = format!(
                 "{1}/{0}",
-                gitignore_repo_path_components.pop().unwrap().to_str().unwrap(),
-                gitignore_repo_path_components.pop().unwrap().to_str().unwrap()
+                gitignore_repo_path_components
+                    .pop()
+                    .unwrap()
+                    .to_str()
+                    .unwrap(),
+                gitignore_repo_path_components
+                    .pop()
+                    .unwrap()
+                    .to_str()
+                    .unwrap()
             );
         }
 
@@ -104,13 +116,13 @@ impl Default for Config {
 
 /// Method implementations for [`Config`].
 impl Config {
-    /// Parses config file contents & generates a [`Config`] item.
+    /// Parses config file content & generates a [`Config`] item.
     pub fn parse(&mut self, config_file_path: &str) -> Result<Config, Box<dyn StdErr>> {
         use super::utils::create_file;
 
         debug!("Parsing config file");
 
-        let mut config_file_contents = String::new();
+        let mut config_file_content = String::new();
 
         if !Path::new(&config_file_path).exists() {
             create_file(&Path::new(&config_file_path))?;
@@ -124,11 +136,11 @@ impl Config {
         self.config_path = config_file_path.to_owned();
 
         if config_file
-            .read_to_string(&mut config_file_contents)
+            .read_to_string(&mut config_file_content)
             .unwrap_or(0)
             > 0
         {
-            match toml::from_str(config_file_contents.trim()) {
+            match toml::from_str(config_file_content.trim()) {
                 Ok(cfg) => {
                     let config = Config {
                         config_path: self.config_path.clone(),
@@ -154,7 +166,7 @@ impl Config {
         Ok(self.clone())
     }
 
-    /// Updates the contents of the config file with the current [`Config`].
+    /// Updates the content of the config file with the current [`Config`].
     fn update_file(&self, config_file: &mut File) -> Result<(), Box<dyn StdErr>> {
         config_file.write_all(toml::to_string(&self)?.as_bytes())?;
         debug!("Updated config file");
@@ -162,7 +174,7 @@ impl Config {
         Ok(())
     }
 
-    /// Saves the contents of the current [`Config`] to the config file.
+    /// Saves the content of the current [`Config`] to the config file.
     pub fn save_file(&self) -> Result<(), Box<dyn StdErr>> {
         debug!("Updating file: {}", self.config_path);
 

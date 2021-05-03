@@ -218,14 +218,14 @@ fn dedup_templates(
     template: &str,
     template_vec: &mut Vec<String>,
 ) -> Result<String, Box<dyn StdErr>> {
+    use lazy_static::lazy_static;
+    use regex::Regex;
+
     // FIXME: Review this function for a better approach if any.
     // Iterating over all the lines for subsequent template files of a given technology seems
     // wasteful, they shouldn't be more than one so...
 
     info!("Deduplicating gitignore template entries for: {}", template);
-
-    use lazy_static::lazy_static;
-    use regex::Regex;
 
     // NOTE: recommended by the `regex` crate's developers to avoid recompilation of the regex rule
     // on subsequent runs.
@@ -459,7 +459,7 @@ fn generate_template_paths(app_options: &mut Options) -> Result<TemplatePaths, B
 
 /// Populates a [`TemplatePaths`] item with filepath entries.
 ///
-/// This function recurses on the contents of the cached gitignore template repositories, appending
+/// This function recurses on the content of the cached gitignore template repositories, appending
 /// filepath entries to the passed [`TemplatePaths`] item for all available templates.
 fn update_template_paths(dir: &Path, template_paths: &mut TemplatePaths) -> io::Result<()> {
     debug!("Updating template file paths for: {}", dir.display());

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 
-//! The `options` module defines elements necessary for the configuration of
-//! [`Options`] (contains the runtime environment config).
+//! The `options` module defines elements necessary for the configuration of [`Options`] (contains
+//! the runtime options).
 
 use super::{config_file::Config, state::State};
 

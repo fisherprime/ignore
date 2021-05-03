@@ -19,7 +19,7 @@ pub enum ErrorKind {
     Other,
 }
 
-/// `struct` containing `ignore`'s error contents.
+/// `struct` containing `ignore`'s error content.
 #[derive(Debug)]
 pub struct Error {
     /// The kind of error as enumerated in [`ErrorKind`].

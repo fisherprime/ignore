@@ -6,8 +6,8 @@ use clap::ArgMatches;
 
 /// Configures [`clap`].
 ///
-/// This function configures [`clap`] then calls [`clap::App::get_matches`] on the result to yield a
-/// [`clap::ArgMatches`] item.
+/// This function configures [`clap`] then calls [`clap::App::get_matches`] on the result to yield
+/// a [`clap::ArgMatches`] item.
 pub fn setup_clap(matches: &mut ArgMatches) {
     use clap::{App, AppSettings, Arg};
 
