@@ -25,7 +25,7 @@ macro_rules! absolute_repo_path {
         format!(
             "{}/{}",
             $parent.config.repo_config.repo_cache_dir, $base.repo_path
-        );
+        )
     };
 }
 
