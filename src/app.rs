@@ -16,6 +16,7 @@ use std::error::Error as StdErr;
 use std::fs::{self, DirEntry, File};
 use std::io::{self, prelude::*};
 use std::path::Path;
+use std::time::SystemTime;
 
 use git2::Repository;
 
@@ -62,7 +63,7 @@ const TEMPLATE_SUPPLEMENT_DELIMITER: &str = "# ****";
 /// })
 /// ```
 pub fn run(mut app_options: Options) -> Result<(), Box<dyn StdErr>> {
-    if app_options.needs_update {
+    if app_options.state.check_staleness(&SystemTime::now())? {
         update_gitignore_repos(&mut app_options)?;
         if app_options.operation == Operation::UpdateRepositories {
             app_options.config.save_file()?;
@@ -74,6 +75,7 @@ pub fn run(mut app_options: Options) -> Result<(), Box<dyn StdErr>> {
         Operation::GenerateGitignore => generate_gitignore(&mut app_options)?,
         Operation::ListAvailableTemplates => list_templates(&mut app_options)?,
         Operation::UpdateRepositories => update_gitignore_repos(&mut app_options)?,
+        Operation::GenerateCompletions => app_options.generate_completions(),
         Operation::Else => info!("No operation specified, this shouldn't have happened"),
     }
 
@@ -367,7 +369,6 @@ fn parse_templates(app_options: &mut Options) -> Result<TemplatePaths, Box<dyn S
 /// REF: [github/nabijaczleweli](https://github.com/nabijaczleweli/cargo-update/blob/master/src/ops/mod.rs)
 fn update_gitignore_repos(app_options: &mut Options) -> Result<(), Box<dyn StdErr>> {
     use git2::build::CheckoutBuilder;
-    use std::time::SystemTime;
 
     info!("Updating gitignore repo(s)");
 

@@ -3,6 +3,8 @@
 //! The `options` module defines elements necessary for the configuration of [`Options`] (contains
 //! the runtime options).
 
+use crate::config::cli::setup_cli;
+
 use super::{config::Config, state::State};
 
 use std::error::Error as StdErr;
@@ -13,6 +15,9 @@ use clap::ArgMatches;
 /// `struct` containing runtime options gathered from the config file and command arguments.
 #[derive(Debug, Clone)]
 pub struct Options {
+    /// Argument as read by [`clap`].
+    matches: ArgMatches,
+
     /// Config read from file.
     pub config: Config,
 
@@ -21,9 +26,6 @@ pub struct Options {
 
     /// Exclusive operation specified by user.
     pub operation: Operation,
-
-    /// Option used to auto-update cached gitignore template repositories.
-    pub needs_update: bool,
 
     /// Path to output generated gitignore.
     pub gitignore_output_file: String,
@@ -41,59 +43,70 @@ pub enum Operation {
     UpdateRepositories,
     /// Option to generate gitignore file.
     GenerateGitignore,
+    /// Option to generate shell completion scripts.
+    GenerateCompletions,
     /// Option for unknown operations.
     Else,
+}
+
+/// Default implementation for [`Options`].
+impl Default for Options {
+    fn default() -> Self {
+        return Self {
+            matches: ArgMatches::default(),
+            config: Config::default(),
+            state: State::default(),
+            operation: Operation::Else,
+            gitignore_output_file: "".to_owned(),
+
+            templates: ["".to_string()].to_vec(),
+        };
+    }
 }
 
 /// Method implementations for [`Options`].
 impl Options {
     /// Load options from the arguments, config file & state file.
-    pub fn load() -> Result<Options, Box<dyn StdErr>> {
-        use super::cli::setup_clap;
+    pub fn load(&mut self) -> Result<Options, Box<dyn StdErr>> {
         use super::logger::setup_logger;
 
         debug!("Parsing command arguments & config file");
 
         let now = SystemTime::now();
 
-        let mut app_config = Config::default();
-        let app_state = State::new(&now).load()?;
+        self.state = State::new(&now).load()?;
 
-        let matches = setup_clap()?;
-        setup_logger(&matches)?;
+        self.matches = setup_cli()?;
+        setup_logger(&self.matches)?;
 
-        app_config = app_config
-            .load(&matches.value_of("config").unwrap_or_default().to_owned())
+        self.config
+            .load(
+                &self
+                    .matches
+                    .value_of("config")
+                    .unwrap_or_default()
+                    .to_owned(),
+            )
             .unwrap_or_else(|err| {
                 error!("Config load error, using the default: {}", err);
-                app_config
+                Config::default()
             });
-
-        let is_stale = app_state.check_staleness(&now)?;
-        let mut app_options = Options {
-            config: app_config,
-            state: app_state,
-            needs_update: is_stale,
-            operation: Operation::Else,
-            gitignore_output_file: "".to_owned(),
-            templates: ["".to_string()].to_vec(),
-        };
-        app_options.configure_operation(&matches);
+        self.configure_operation();
 
         debug!(
             "Loaded command arguments & config file, options: {:#?}",
-            app_options
+            self
         );
 
-        Ok(app_options)
+        Ok(self.clone())
     }
 
     /// Configures the `Options` to execute subcommand selected by the user.
     ///
     /// This function checks for the presence of [`clap::Subcommand`]s & [`clap::Arg`]s as provided
     /// in the [`clap::ArgMatches`] struct.
-    fn configure_operation(&mut self, matches: &ArgMatches) {
-        match matches.subcommand() {
+    fn configure_operation(&mut self) {
+        match self.matches.subcommand() {
             Some(("list", _)) => self.operation = Operation::ListAvailableTemplates,
             Some(("update", _)) => self.operation = Operation::UpdateRepositories,
             Some(("generate", sub_matches)) => {
@@ -112,7 +125,17 @@ impl Options {
                     _ => {}
                 }
             }
+            Some(("generate_completions", _)) => {
+                self.operation = Operation::GenerateCompletions
+            }
             _ => self.operation = Operation::Else,
         }
+    }
+
+    pub fn generate_completions(&mut self) {
+        /* use clap_complete::{generate, shells::Bash};
+         * use std::io;
+         * generate(Bash, &mut setup_cli().unwrap(), "ignore", &mut io::stdout()); */
+        // TODO: Implement.
     }
 }

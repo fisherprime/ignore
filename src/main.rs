@@ -29,7 +29,7 @@ use config::options::Options;
 /// This function initiates the setup of the runtime environment by calling [`Options::parse`] then
 /// calls [`run`].
 fn main() {
-    Options::load()
+    Options::default().load()
         .map(|app_options| {
             run(app_options).unwrap_or_else(|err| error!("Application error: {}", err))
         })

@@ -17,7 +17,7 @@ const DEFAULT_CONFIG_PATH: &str = "ignore/config.toml";
 ///
 /// This function configures [`clap`] then calls [`clap::App::get_matches`] on the result to yield
 /// a [`clap::ArgMatches`] item.
-pub fn setup_clap() -> Result<ArgMatches, Box<dyn StdErr>> {
+pub fn setup_cli() -> Result<ArgMatches, Box<dyn StdErr>> {
     use clap::{Arg, Command};
 
     let mut default_config_file_path: PathBuf;
@@ -32,6 +32,25 @@ pub fn setup_clap() -> Result<ArgMatches, Box<dyn StdErr>> {
         .version(crate_version!())
         .about("A gitignore generator")
         .author("fisherprime")
+        .arg(
+            Arg::new("config")
+            .help("Load configuration from FILE")
+            .short('c')
+            .long("config")
+            .value_name("FILE")
+            .default_value(default_config_file_path.into_os_string().to_str().unwrap_or(DEFAULT_CONFIG_PATH))
+            .takes_value(true)
+        )
+        .arg(
+            Arg::new("verbosity")
+            .help("Set the level of verbosity: -v or -vv")
+            .short('v')
+            .long("verbose")
+            .multiple_occurrences(true)
+        ).subcommand(
+        Command::new("generate-completions'")
+        .about("Generate tab completion scripts")
+        )
         .subcommand(
             Command::new("update")
             .about("Update the gitignore template repo(s)")              
@@ -61,22 +80,7 @@ pub fn setup_clap() -> Result<ArgMatches, Box<dyn StdErr>> {
                 .value_name("TEMPLATE")
                 .takes_value(true)
                 .multiple_occurrences(true)
-            )            )
-            .arg(
-                Arg::new("config")
-                .help("Load configuration from FILE")
-                .short('c')
-                .long("config")
-                .value_name("FILE")
-                .default_value(default_config_file_path.into_os_string().to_str().unwrap_or(DEFAULT_CONFIG_PATH))
-                .takes_value(true)
-            )
-            .arg(
-                Arg::new("verbosity")
-                .help("Set the level of verbosity: -v or -vv")
-                .short('v')
-                .long("verbose")
-                .multiple_occurrences(true)
+            )           
             )
             .get_matches();
     debug!("Parsed command flags");
