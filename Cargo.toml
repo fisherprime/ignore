@@ -1,6 +1,6 @@
 [package]
 name = "ignore"
-version = "1.5.7"
+version = "1.5.8-rc.1"
 # documentation
 authors = ["fisherprime <mbock.ernie40@protonmail.ch>"]
 description = "A .gitignore file generator."
@@ -13,7 +13,7 @@ repository = "https://gitlab.com/fisherprime/ignore"
 
 [dependencies]
 chrono = "0.4"
-clap = "2.33"
+clap = { version = "3.1", features = ["cargo"] }
 dirs-next = "2.0"
 fern = "0.6"
 git2 = "0.13"

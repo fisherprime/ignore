@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-//! The `config_file` module defines elements necessary for the setup and configuration of [`Config`]
+//! The `config` module defines elements necessary for the setup and configuration of [`Config`]
 //! (part of runtime environment).
 
 use std::error::Error as StdErr;
@@ -19,7 +19,7 @@ const GITIGNORE_DEFAULT_REPO: &str = "https://github.com/github/gitignore";
 /// storing gitignore template repositories--.
 const GITIGNORE_REPO_CACHE_DIR: &str = "ignore/repos";
 
-/// `struct` containing the runtime options parsed from a config file.
+/// `struct` containing the runtime options loaded from a config file.
 #[derive(Deserialize, Serialize, PartialEq, Debug, Clone)]
 #[serde(default)]
 pub struct Config {
@@ -116,11 +116,11 @@ impl Default for Config {
 
 /// Method implementations for [`Config`].
 impl Config {
-    /// Parses config file content & generates a [`Config`] item.
-    pub fn parse(&mut self, config_file_path: &str) -> Result<Config, Box<dyn StdErr>> {
-        use super::utils::create_file;
+    /// Load config file content to generate the [`Config`] item.
+    pub fn load(&mut self, config_file_path: &str) -> Result<Config, Box<dyn StdErr>> {
+        use crate::utils::create_file;
 
-        debug!("Parsing config file");
+        debug!("Loading config file");
 
         let mut config_file_content = String::new();
 
@@ -146,7 +146,7 @@ impl Config {
                         config_path: self.config_path.clone(),
                         ..cfg
                     };
-                    debug!("Done parsing config file, config: {:#?}", config);
+                    debug!("Loaded config file, config: {:#?}", config);
 
                     return Ok(config);
                 }
@@ -176,7 +176,7 @@ impl Config {
 
     /// Saves the content of the current [`Config`] to the config file.
     pub fn save_file(&self) -> Result<(), Box<dyn StdErr>> {
-        debug!("Updating file: {}", self.config_path);
+        debug!("Updating config file: {}", self.config_path);
 
         let mut config_file = OpenOptions::new()
             .read(true)
@@ -192,15 +192,15 @@ impl Config {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::utils::create_file;
+    use crate::utils::create_file;
 
     /**
      * Assert correctness of the default runtime options, includes the config.
      * TODO: add necessary fields
      */
     /*     #[test]
-     *     fn option_parse_test() {
-     *         let options = match Options::parse() {
+     *     fn option_load_test() {
+     *         let options = match Options::load() {
      *             Some(val) => val,
      *             None => None,
      *         };
@@ -233,8 +233,8 @@ mod tests {
     }
 
     #[test]
-    /// Assert correctness of parsed default config file.
-    fn config_file_parse_test() {
+    /// Assert correctness of the loaded default config file.
+    fn config_file_load_test() {
         let mut config = Config::default();
 
         let mut config_path = dirs_next::config_dir().unwrap();
@@ -247,17 +247,17 @@ mod tests {
 
         // Parse default config file; populate `Config` variable with default default config on error (non-existent).
         config = config
-            .parse(&config_path.clone().into_os_string().into_string().unwrap())
+            .load(&config_path.clone().into_os_string().into_string().unwrap())
             .map(|cfg| cfg)
             .unwrap_or_else(|err| {
-                error!("Config parse error, using the default: {}", err);
+                error!("Config load error, using the default: {}", err);
                 config.clone()
             });
 
         // Parse current config file & assert is similar to the default.
         config
-            .parse(&config_path.into_os_string().into_string().unwrap())
+            .load(&config_path.into_os_string().into_string().unwrap())
             .map(|cfg| assert!(cfg.eq(&config)))
-            .unwrap_or_else(|err| panic!("Could not parse config: {}", err));
+            .unwrap_or_else(|err| panic!("Could not load config: {}", err));
     }
 }

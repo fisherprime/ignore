@@ -8,7 +8,7 @@
  * Note: `super::` & `self::` are relative to the current module while `crate::` is relative to the
  * crate root.
  */
-use crate::config::{config_file::RepoDetails, options::Operation, options::Options};
+use crate::config::{config::RepoDetails, options::Operation, options::Options};
 use crate::errors::{Error, ErrorKind};
 
 use std::collections::btree_map::BTreeMap;
@@ -342,8 +342,9 @@ fn parse_templates(app_options: &mut Options) -> Result<TemplatePaths, Box<dyn S
     let template_paths = generate_template_paths(app_options)?;
 
     for template in template_list {
-        // NOTE: The `clippy::option_map_unit_fn` warning was thrown for using a `map` on the
-        // below operation.
+        // NOTE: The `clippy::option_map_unit_fn` warning was thrown for using a `map` on the below
+        // operation.
+        //
         // Using `if let` is preferred for readability when a function doesn't return anything
         // meaningful: `std::unit`/`()`.
         if let Some(t_paths) = template_paths.get(&template) {
@@ -385,7 +386,7 @@ fn update_gitignore_repos(app_options: &mut Options) -> Result<(), Box<dyn StdEr
         match Repository::discover(&absolute_repo_path) {
             Ok(repo) => {
                 debug!(
-                    "Repository is cached locally, updating: {}",
+                    "Updating cached repository: {}",
                     repo_det.repo_path
                 );
 
@@ -396,7 +397,7 @@ fn update_gitignore_repos(app_options: &mut Options) -> Result<(), Box<dyn StdEr
                 repo.reset(&fetch_head, git2::ResetType::Hard, Some(&mut checkout))?;
             }
             Err(_) => {
-                info!("Repository not cached locally: {}", repo_det.repo_path);
+                info!("Caching new repository: {}", repo_det.repo_path);
                 clone_repository(app_options, &repo_det)?;
             }
         };

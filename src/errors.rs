@@ -9,6 +9,9 @@ use std::fmt::{Display, Formatter, Result};
 #[allow(dead_code)]
 #[derive(Debug)]
 pub enum ErrorKind {
+    /// `dirs-next` failed to return the user's config directory.
+    LocateConfigDir,
+
     /// User requested templates not found.
     MissingTemplates,
 
@@ -62,6 +65,7 @@ impl Display for Error {
                 "None of the requested gitignore template(s) could be found"
             }
             ErrorKind::NoOutput => "No output was generated for the user specified operation",
+            ErrorKind::LocateConfigDir => "Failed to locate config directory",
             ErrorKind::Other => {
                 if self.other_message.is_empty() {
                     "User defined error with no payload encountered"

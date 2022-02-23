@@ -51,10 +51,9 @@ impl State {
         }
     }
 
-    /// Parses state file content & generates a [`State`] item.
-    // Passing a reference to Config struct avoid taking ownership.
-    pub fn parse(&mut self) -> Result<State, Box<dyn StdErr>> {
-        use super::utils::create_file;
+    /// Load state file content to generate the [`State`] item.
+    pub fn load(&mut self) -> Result<State, Box<dyn StdErr>> {
+        use crate::utils::create_file;
 
         let mut state_file_path = dirs_next::cache_dir().unwrap();
         state_file_path.push(STATE_FILE_PATH_SUFFIX);

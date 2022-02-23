@@ -3,10 +3,9 @@
 //! The `options` module defines elements necessary for the configuration of [`Options`] (contains
 //! the runtime options).
 
-use super::{config_file::Config, state::State};
+use super::{config::Config, state::State};
 
 use std::error::Error as StdErr;
-use std::path::Path;
 use std::time::SystemTime;
 
 use clap::ArgMatches;
@@ -48,89 +47,72 @@ pub enum Operation {
 
 /// Method implementations for [`Options`].
 impl Options {
-    /// Parses command arguments.
-    pub fn parse() -> Result<Options, Box<dyn StdErr>> {
-        use super::setup::{setup_clap, setup_logger};
+    /// Load options from the arguments, config file & state file.
+    pub fn load() -> Result<Options, Box<dyn StdErr>> {
+        use super::cli::setup_clap;
+        use super::logger::setup_logger;
 
         debug!("Parsing command arguments & config file");
 
         let now = SystemTime::now();
 
-        let mut config_file_path = String::new();
-
         let mut app_config = Config::default();
-        let app_state = State::new(&now).parse()?;
+        let app_state = State::new(&now).load()?;
 
-        let mut matches = ArgMatches::new();
-
-        setup_clap(&mut matches);
-
+        let matches = setup_clap()?;
         setup_logger(&matches)?;
 
-        let mut default_config_file_path =
-            dirs_next::config_dir().expect("Error obtaining system's config directory");
-        default_config_file_path.push("ignore/config.toml");
+        app_config = app_config
+            .load(&matches.value_of("config").unwrap_or_default().to_owned())
+            .unwrap_or_else(|err| {
+                error!("Config load error, using the default: {}", err);
+                app_config
+            });
 
-        if let Some(path) = matches.value_of("config") {
-            if Path::new(path).exists() {
-                config_file_path = path.to_owned();
-                debug!("Using user supplied config file path");
-            } else if let Some(cfg_path) = default_config_file_path.into_os_string().to_str() {
-                config_file_path = cfg_path.to_owned();
-                debug!("Using default config file path");
-            }
-        } else {
-            if let Some(cfg_path) = default_config_file_path.into_os_string().to_str() {
-                config_file_path = cfg_path.to_owned();
-            }
-
-            debug!("Using default config file path");
-        }
-
-        app_config = app_config.parse(&config_file_path).unwrap_or_else(|err| {
-            error!("Config parse error, using the default: {}", err);
-            app_config
-        });
-
-        let repo_staleness = app_state.check_staleness(&now)?;
-        let app_options = Options {
+        let is_stale = app_state.check_staleness(&now)?;
+        let mut app_options = Options {
             config: app_config,
             state: app_state,
-            operation: get_operation(&matches),
-            needs_update: repo_staleness,
-            gitignore_output_file: matches.value_of("output").unwrap_or("gitignore").to_owned(),
-            templates: match matches.values_of("template") {
-                Some(templates_arg) => templates_arg
-                    .map(|tmpl| tmpl.to_owned())
-                    .collect::<Vec<String>>(),
-                None => ["".to_string()].to_vec(),
-            },
+            needs_update: is_stale,
+            operation: Operation::Else,
+            gitignore_output_file: "".to_owned(),
+            templates: ["".to_string()].to_vec(),
         };
+        app_options.configure_operation(&matches);
+
         debug!(
-            "Parsed command arguments & config file, options: {:#?}",
+            "Loaded command arguments & config file, options: {:#?}",
             app_options
         );
 
         Ok(app_options)
     }
-}
 
-/// Determines the operation specified in the user supplied arguments.
-///
-/// This function checks for the presence of user arguments as provided in the [`clap::ArgMatches`]
-/// struct.
-pub fn get_operation(matches: &ArgMatches) -> Operation {
-    if matches.is_present("template") {
-        return Operation::GenerateGitignore;
+    /// Configures the `Options` to execute subcommand selected by the user.
+    ///
+    /// This function checks for the presence of [`clap::Subcommand`]s & [`clap::Arg`]s as provided
+    /// in the [`clap::ArgMatches`] struct.
+    fn configure_operation(&mut self, matches: &ArgMatches) {
+        match matches.subcommand() {
+            Some(("list", _)) => self.operation = Operation::ListAvailableTemplates,
+            Some(("update", _)) => self.operation = Operation::UpdateRepositories,
+            Some(("generate", sub_matches)) => {
+                self.operation = Operation::GenerateGitignore;
+
+                self.gitignore_output_file = sub_matches
+                    .value_of("output")
+                    .unwrap_or_default()
+                    .to_owned();
+                match sub_matches.values_of("template") {
+                    Some(templates_arg) => {
+                        self.templates = templates_arg
+                            .map(|tmpl| tmpl.to_owned())
+                            .collect::<Vec<String>>()
+                    }
+                    _ => {}
+                }
+            }
+            _ => self.operation = Operation::Else,
+        }
     }
-
-    if matches.is_present("list") {
-        return Operation::ListAvailableTemplates;
-    }
-
-    if matches.is_present("update") {
-        return Operation::UpdateRepositories;
-    }
-
-    Operation::Else
 }
