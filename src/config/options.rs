@@ -3,7 +3,7 @@
 //! The `options` module defines elements necessary for the configuration of [`Options`] (contains
 //! the runtime options).
 
-use crate::config::cli::setup_cli;
+use crate::config::cli::{setup_cli, APP_NAME};
 
 use super::{config::Config, state::State};
 
@@ -73,7 +73,6 @@ impl Options {
         debug!("Parsing command arguments & config file");
 
         let now = SystemTime::now();
-
         self.state = State::new(&now).load()?;
 
         self.matches = setup_cli()?;
@@ -106,10 +105,11 @@ impl Options {
     /// This function checks for the presence of [`clap::Subcommand`]s & [`clap::Arg`]s as provided
     /// in the [`clap::ArgMatches`] struct.
     fn configure_operation(&mut self) {
+        use crate::config::cli::{COMPLETIONS_SUBCMD, GENERATE_SUBCMD, LIST_SUBCMD, UPDATE_SUBCMD};
         match self.matches.subcommand() {
-            Some(("list", _)) => self.operation = Operation::ListAvailableTemplates,
-            Some(("update", _)) => self.operation = Operation::UpdateRepositories,
-            Some(("generate", sub_matches)) => {
+            Some((LIST_SUBCMD, _)) => self.operation = Operation::ListAvailableTemplates,
+            Some((UPDATE_SUBCMD, _)) => self.operation = Operation::UpdateRepositories,
+            Some((GENERATE_SUBCMD, sub_matches)) => {
                 self.operation = Operation::GenerateGitignore;
 
                 self.gitignore_output_file = sub_matches
@@ -125,9 +125,7 @@ impl Options {
                     _ => {}
                 }
             }
-            Some(("generate_completions", _)) => {
-                self.operation = Operation::GenerateCompletions
-            }
+            Some((COMPLETIONS_SUBCMD, _)) => self.operation = Operation::GenerateCompletions,
             _ => self.operation = Operation::Else,
         }
     }
@@ -135,7 +133,7 @@ impl Options {
     pub fn generate_completions(&mut self) {
         /* use clap_complete::{generate, shells::Bash};
          * use std::io;
-         * generate(Bash, &mut setup_cli().unwrap(), "ignore", &mut io::stdout()); */
+         * generate(Bash, &mut setup_cli().unwrap(), APP_NAME, &mut io::stdout()); */
         // TODO: Implement.
     }
 }

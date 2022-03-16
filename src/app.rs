@@ -386,10 +386,7 @@ fn update_gitignore_repos(app_options: &mut Options) -> Result<(), Box<dyn StdEr
 
         match Repository::discover(&absolute_repo_path) {
             Ok(repo) => {
-                debug!(
-                    "Updating cached repository: {}",
-                    repo_det.repo_path
-                );
+                debug!("Updating cached repository: {}", repo_det.repo_path);
 
                 repo.find_remote("origin")?.fetch(&["master"], None, None)?;
                 let fetch_head = repo

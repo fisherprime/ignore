@@ -10,8 +10,15 @@ use clap::ArgMatches;
 use crate::errors::Error;
 use crate::errors::ErrorKind;
 
+pub const APP_NAME : &str = "ignore";
+
 const DEFAULT_OUTPUT_FILE: &str = "gitignore";
 const DEFAULT_CONFIG_PATH: &str = "ignore/config.toml";
+
+pub const COMPLETIONS_SUBCMD: &str = "completions";
+pub const LIST_SUBCMD: &str = "list";
+pub const UPDATE_SUBCMD: &str = "update";
+pub const GENERATE_SUBCMD: &str = "generate";
 
 /// Configures [`clap`].
 ///
@@ -27,7 +34,7 @@ pub fn setup_cli() -> Result<ArgMatches, Box<dyn StdErr>> {
     }
     default_config_file_path.push(DEFAULT_CONFIG_PATH);
 
-    let matches = Command::new("ignore")
+    let matches = Command::new(APP_NAME)
         .arg_required_else_help(true)
         .version(crate_version!())
         .about("A gitignore generator")
@@ -48,19 +55,19 @@ pub fn setup_cli() -> Result<ArgMatches, Box<dyn StdErr>> {
             .long("verbose")
             .multiple_occurrences(true)
         ).subcommand(
-        Command::new("generate-completions'")
+        Command::new(COMPLETIONS_SUBCMD)
         .about("Generate tab completion scripts")
         )
         .subcommand(
-            Command::new("update")
+            Command::new(UPDATE_SUBCMD)
             .about("Update the gitignore template repo(s)")              
         )
         .subcommand(
-            Command::new("list")
+            Command::new(LIST_SUBCMD)
             .about("List available languages, tools & projects")
         )
         .subcommand(
-            Command::new("generate")
+            Command::new(GENERATE_SUBCMD)
             .arg_required_else_help(true)
             .about("Generate gitignore file")
             .arg(
