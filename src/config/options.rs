@@ -3,7 +3,8 @@
 //! The `options` module defines elements necessary for the configuration of [`Options`] (contains
 //! the runtime options).
 
-use crate::config::cli::{setup_cli, APP_NAME};
+use crate::config::cli::{build_cli, get_config_file_path, APP_NAME};
+use crate::errors::{Error, ErrorKind};
 
 use super::{config::Config, state::State};
 
@@ -11,6 +12,7 @@ use std::error::Error as StdErr;
 use std::time::SystemTime;
 
 use clap::ArgMatches;
+use clap_complete::Shell;
 
 /// `struct` containing runtime options gathered from the config file and command arguments.
 #[derive(Debug, Clone)]
@@ -29,6 +31,9 @@ pub struct Options {
 
     /// Path to output generated gitignore.
     pub gitignore_output_file: String,
+
+    /// Shell to generate completions for.
+    pub completion_shell: Shell,
 
     /// List of templates user desires to use in gitignore generation.
     pub templates: Vec<String>,
@@ -59,6 +64,8 @@ impl Default for Options {
             operation: Operation::Else,
             gitignore_output_file: "".to_owned(),
 
+            completion_shell: Shell::Zsh,
+
             templates: ["".to_string()].to_vec(),
         };
     }
@@ -75,7 +82,8 @@ impl Options {
         let now = SystemTime::now();
         self.state = State::new(&now).load()?;
 
-        self.matches = setup_cli()?;
+        self.matches = build_cli(&get_config_file_path()?)?.get_matches();
+        debug!("Parsed command flags");
         setup_logger(&self.matches)?;
 
         self.config
@@ -130,10 +138,25 @@ impl Options {
         }
     }
 
-    pub fn generate_completions(&mut self) {
-        /* use clap_complete::{generate, shells::Bash};
-         * use std::io;
-         * generate(Bash, &mut setup_cli().unwrap(), APP_NAME, &mut io::stdout()); */
-        // TODO: Implement.
+    /// TODO: Implement.
+    pub fn generate_completions(&mut self) -> Result<(), Box<dyn StdErr>> {
+        use clap_complete::generate;
+        use std::io;
+
+        let cfg = get_config_file_path()?;
+        let mut app = build_cli(&cfg)?;
+
+        let shell = match self.completion_shell {
+            Shell::Bash => Shell::Bash,
+            Shell::Zsh => Shell::Zsh,
+            Shell::Elvish => Shell::Elvish,
+            Shell::PowerShell => Shell::PowerShell,
+            Shell::Fish => Shell::Fish,
+            _ => return Err(Box::new(Error::from(ErrorKind::UnknownCompletionShell))),
+        };
+
+        generate(shell, &mut app, APP_NAME, &mut io::stdout());
+
+        Ok(())
     }
 }

@@ -3,14 +3,17 @@
 //! The `cli` module defines functions necessary for the setup of [`clap`] and [`fern`].
 
 use std::error::Error as StdErr;
+use std::ffi::OsString;
 use std::path::PathBuf;
 
-use clap::ArgMatches;
+use clap::Command;
+use clap::Result;
+use clap_complete::Shell;
 
 use crate::errors::Error;
 use crate::errors::ErrorKind;
 
-pub const APP_NAME : &str = "ignore";
+pub const APP_NAME: &str = "ignore";
 
 const DEFAULT_OUTPUT_FILE: &str = "gitignore";
 const DEFAULT_CONFIG_PATH: &str = "ignore/config.toml";
@@ -20,13 +23,8 @@ pub const LIST_SUBCMD: &str = "list";
 pub const UPDATE_SUBCMD: &str = "update";
 pub const GENERATE_SUBCMD: &str = "generate";
 
-/// Configures [`clap`].
-///
-/// This function configures [`clap`] then calls [`clap::App::get_matches`] on the result to yield
-/// a [`clap::ArgMatches`] item.
-pub fn setup_cli() -> Result<ArgMatches, Box<dyn StdErr>> {
-    use clap::{Arg, Command};
-
+/// Obtains the default config file path for the executable's operating system.
+pub fn get_config_file_path() -> Result<OsString, Box<dyn StdErr>> {
     let mut default_config_file_path: PathBuf;
     match dirs_next::config_dir() {
         Some(v) => default_config_file_path = v,
@@ -34,7 +32,14 @@ pub fn setup_cli() -> Result<ArgMatches, Box<dyn StdErr>> {
     }
     default_config_file_path.push(DEFAULT_CONFIG_PATH);
 
-    let matches = Command::new(APP_NAME)
+    Ok(default_config_file_path.into_os_string())
+}
+
+/// Builds a [`clap::Command`].
+pub fn build_cli<'a>(config_path: &'a OsString) -> Result<Command<'a>, Box<dyn StdErr>> {
+    use clap::Arg;
+
+    Ok(Command::new(APP_NAME)
         .arg_required_else_help(true)
         .version(crate_version!())
         .about("A gitignore generator")
@@ -45,7 +50,7 @@ pub fn setup_cli() -> Result<ArgMatches, Box<dyn StdErr>> {
             .short('c')
             .long("config")
             .value_name("FILE")
-            .default_value(default_config_file_path.into_os_string().to_str().unwrap_or(DEFAULT_CONFIG_PATH))
+            .default_value(config_path.to_str().unwrap_or(DEFAULT_CONFIG_PATH))
             .takes_value(true)
         )
         .arg(
@@ -56,7 +61,14 @@ pub fn setup_cli() -> Result<ArgMatches, Box<dyn StdErr>> {
             .multiple_occurrences(true)
         ).subcommand(
         Command::new(COMPLETIONS_SUBCMD)
+            .arg_required_else_help(true)
         .about("Generate tab completion scripts")
+        .arg(
+            Arg::new("shell")
+            .help("Specify shell to generate completion script for")
+            .value_name("SHELL")
+            // .possible_values(Shell::possible_values()) // Requires `'static` lifetime.
+            .takes_value(true))
         )
         .subcommand(
             Command::new(UPDATE_SUBCMD)
@@ -88,9 +100,5 @@ pub fn setup_cli() -> Result<ArgMatches, Box<dyn StdErr>> {
                 .takes_value(true)
                 .multiple_occurrences(true)
             )           
-            )
-            .get_matches();
-    debug!("Parsed command flags");
-
-    return Ok(matches);
+            ))
 }

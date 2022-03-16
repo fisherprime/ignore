@@ -18,6 +18,9 @@ pub enum ErrorKind {
     /// No output generated for specified action.
     NoOutput,
 
+    /// Unknown completion shell.
+    UnknownCompletionShell,
+
     /// Error type for arbitrary (no fixed rule) errors.
     Other,
 }
@@ -66,6 +69,7 @@ impl Display for Error {
             }
             ErrorKind::NoOutput => "No output was generated for the user specified operation",
             ErrorKind::LocateConfigDir => "Failed to locate config directory",
+            ErrorKind::UnknownCompletionShell => "Unknown completion shell",
             ErrorKind::Other => {
                 if self.other_message.is_empty() {
                     "User defined error with no payload encountered"

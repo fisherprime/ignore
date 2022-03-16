@@ -75,7 +75,7 @@ pub fn run(mut app_options: Options) -> Result<(), Box<dyn StdErr>> {
         Operation::GenerateGitignore => generate_gitignore(&mut app_options)?,
         Operation::ListAvailableTemplates => list_templates(&mut app_options)?,
         Operation::UpdateRepositories => update_gitignore_repos(&mut app_options)?,
-        Operation::GenerateCompletions => app_options.generate_completions(),
+        Operation::GenerateCompletions => app_options.generate_completions()?,
         Operation::Else => info!("No operation specified, this shouldn't have happened"),
     }
 
