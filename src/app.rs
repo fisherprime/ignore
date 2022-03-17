@@ -220,7 +220,6 @@ fn dedup_templates(
     template: &str,
     template_vec: &mut Vec<String>,
 ) -> Result<String, Box<dyn StdErr>> {
-    use lazy_static::lazy_static;
     use regex::Regex;
 
     // FIXME: Review this function for a better approach if any.

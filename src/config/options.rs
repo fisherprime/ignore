@@ -3,12 +3,12 @@
 //! The `options` module defines elements necessary for the configuration of [`Options`] (contains
 //! the runtime options).
 
-use crate::config::cli::{build_cli, get_config_file_path, APP_NAME};
-use crate::errors::{Error, ErrorKind};
+use crate::config::cli::{build_cli, APP_NAME};
 
 use super::{config::Config, state::State};
 
 use std::error::Error as StdErr;
+use std::str::FromStr;
 use std::time::SystemTime;
 
 use clap::ArgMatches;
@@ -82,7 +82,7 @@ impl Options {
         let now = SystemTime::now();
         self.state = State::new(&now).load()?;
 
-        self.matches = build_cli(&get_config_file_path()?)?.get_matches();
+        self.matches = build_cli()?.get_matches();
         debug!("Parsed command flags");
         setup_logger(&self.matches)?;
 
@@ -133,29 +133,27 @@ impl Options {
                     _ => {}
                 }
             }
-            Some((COMPLETIONS_SUBCMD, _)) => self.operation = Operation::GenerateCompletions,
+            Some((COMPLETIONS_SUBCMD, sub_matches)) => {
+                self.operation = Operation::GenerateCompletions;
+                self.completion_shell =
+                    Shell::from_str(sub_matches.value_of("shell").unwrap()).unwrap_or(Shell::Zsh);
+            }
             _ => self.operation = Operation::Else,
         }
     }
 
-    /// TODO: Implement.
+    /// Generates completions for shells defined in [`clap_complete::Shell`].
     pub fn generate_completions(&mut self) -> Result<(), Box<dyn StdErr>> {
         use clap_complete::generate;
         use std::io;
 
-        let cfg = get_config_file_path()?;
-        let mut app = build_cli(&cfg)?;
-
-        let shell = match self.completion_shell {
-            Shell::Bash => Shell::Bash,
-            Shell::Zsh => Shell::Zsh,
-            Shell::Elvish => Shell::Elvish,
-            Shell::PowerShell => Shell::PowerShell,
-            Shell::Fish => Shell::Fish,
-            _ => return Err(Box::new(Error::from(ErrorKind::UnknownCompletionShell))),
-        };
-
-        generate(shell, &mut app, APP_NAME, &mut io::stdout());
+        println!("{}", self.completion_shell);
+        generate(
+            self.completion_shell,
+            &mut build_cli()?,
+            APP_NAME,
+            &mut io::stdout(),
+        );
 
         Ok(())
     }

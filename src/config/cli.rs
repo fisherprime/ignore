@@ -6,8 +6,7 @@ use std::error::Error as StdErr;
 use std::ffi::OsString;
 use std::path::PathBuf;
 
-use clap::Command;
-use clap::Result;
+use clap::{Command,Result, Arg};
 use clap_complete::Shell;
 
 use crate::errors::Error;
@@ -23,7 +22,21 @@ pub const LIST_SUBCMD: &str = "list";
 pub const UPDATE_SUBCMD: &str = "update";
 pub const GENERATE_SUBCMD: &str = "generate";
 
+lazy_static! {
+    static ref CFG_FILE_PATH_BUF: PathBuf = {
+        let mut default_config_file_path = PathBuf::new();
+        match dirs_next::config_dir() {
+            Some(v) => default_config_file_path = v,
+            None => {}
+        }
+        default_config_file_path.push(DEFAULT_CONFIG_PATH);
+        default_config_file_path
+    };
+    static ref CFG_FILE: &'static str = CFG_FILE_PATH_BUF.to_str().unwrap_or(DEFAULT_CONFIG_PATH);
+}
+
 /// Obtains the default config file path for the executable's operating system.
+#[allow(dead_code)]
 pub fn get_config_file_path() -> Result<OsString, Box<dyn StdErr>> {
     let mut default_config_file_path: PathBuf;
     match dirs_next::config_dir() {
@@ -36,9 +49,7 @@ pub fn get_config_file_path() -> Result<OsString, Box<dyn StdErr>> {
 }
 
 /// Builds a [`clap::Command`].
-pub fn build_cli<'a>(config_path: &'a OsString) -> Result<Command<'a>, Box<dyn StdErr>> {
-    use clap::Arg;
-
+pub fn build_cli() -> Result<Command<'static>, Box<dyn StdErr>> {
     Ok(Command::new(APP_NAME)
         .arg_required_else_help(true)
         .version(crate_version!())
@@ -50,7 +61,7 @@ pub fn build_cli<'a>(config_path: &'a OsString) -> Result<Command<'a>, Box<dyn S
             .short('c')
             .long("config")
             .value_name("FILE")
-            .default_value(config_path.to_str().unwrap_or(DEFAULT_CONFIG_PATH))
+            .default_value(*CFG_FILE)
             .takes_value(true)
         )
         .arg(
@@ -67,12 +78,12 @@ pub fn build_cli<'a>(config_path: &'a OsString) -> Result<Command<'a>, Box<dyn S
             Arg::new("shell")
             .help("Specify shell to generate completion script for")
             .value_name("SHELL")
-            // .possible_values(Shell::possible_values()) // Requires `'static` lifetime.
+            .possible_values(Shell::possible_values())
             .takes_value(true))
         )
         .subcommand(
             Command::new(UPDATE_SUBCMD)
-            .about("Update the gitignore template repo(s)")              
+            .about("Update the gitignore template repo(s)")
         )
         .subcommand(
             Command::new(LIST_SUBCMD)
@@ -99,6 +110,5 @@ pub fn build_cli<'a>(config_path: &'a OsString) -> Result<Command<'a>, Box<dyn S
                 .value_name("TEMPLATE")
                 .takes_value(true)
                 .multiple_occurrences(true)
-            )           
-            ))
+            )               ))
 }
