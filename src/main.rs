@@ -29,8 +29,7 @@ use config::options::Options;
 
 /// This is the entry point for `ignore`'s binary.
 ///
-/// This function initiates the setup of the runtime environment by calling [`Options::parse`] then
-/// calls [`run`].
+/// This function sets up the runtime environment [`Options`] then executes the specified operation.
 fn main() {
     Options::default()
         .load()

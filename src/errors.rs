@@ -18,9 +18,6 @@ pub enum ErrorKind {
     /// No output generated for specified action.
     NoOutput,
 
-    /// Unknown completion shell.
-    UnknownCompletionShell,
-
     /// Error type for arbitrary (no fixed rule) errors.
     Other,
 }
@@ -61,6 +58,7 @@ impl Error {
     }
 }
 
+/// [`std::fmt::Display`] trait implementation for [`Error`].
 impl Display for Error {
     fn fmt(&self, f: &mut Formatter) -> Result {
         let message = match self.kind() {
@@ -69,7 +67,6 @@ impl Display for Error {
             }
             ErrorKind::NoOutput => "No output was generated for the user specified operation",
             ErrorKind::LocateConfigDir => "Failed to locate config directory",
-            ErrorKind::UnknownCompletionShell => "Unknown completion shell",
             ErrorKind::Other => {
                 if self.other_message.is_empty() {
                     "User defined error with no payload encountered"
@@ -82,6 +79,7 @@ impl Display for Error {
     }
 }
 
+/// [`std::error::Error`] trait implementation for [`Error`].
 impl StdErr for Error {
     fn source(&self) -> Option<&(dyn StdErr + 'static)> {
         match &self.error {
@@ -91,6 +89,7 @@ impl StdErr for Error {
     }
 }
 
+/// [`From`] trait implementation to convert an [`ErrorKind`] to an [`Error`].
 impl From<ErrorKind> for Error {
     fn from(error_kind: ErrorKind) -> Self {
         Self {
@@ -101,6 +100,8 @@ impl From<ErrorKind> for Error {
     }
 }
 
+
+/// [`From`] trait implementation to convert a [`String`] to an [`Error`].
 impl From<String> for Error {
     fn from(message: String) -> Self {
         Self {

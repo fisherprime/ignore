@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 
 /// Constant specifying the default gitignore template repo to use.
 ///
-/// An alternative/supplement is: "https://github.com/toptal/gitignore" (gitignore.io)'s templates.
+/// An alternative/supplement is: <https://github.com/toptal/gitignore> (gitignore.io)'s templates.
 const GITIGNORE_DEFAULT_REPO: &str = "https://github.com/github/gitignore";
 
 /// Constant specifying the repository cache subdirectory within the system's cache directory --for
@@ -51,7 +51,7 @@ pub struct RepoDetails {
     /// Choice of ignoring repository usage in `ignore`'s operations.
     pub ignore: bool,
 
-    /// Relative path (to [`RepoConfig::repo_parent_dir`]) of gitignore template repository.
+    /// Gitignore template's local cache directory relative to [`RepoConfig::repo_cache_dir`].
     pub repo_path: String,
 
     /// URL of git repository containing gitignore templates.
@@ -210,7 +210,7 @@ mod tests {
 
     #[test]
     /// Assert correctness of the default config options.
-    fn config_var_create_test() {
+    fn config_variable_test() {
         let config = Config::default();
 
         let mut parent_dir = dirs_next::cache_dir().unwrap();

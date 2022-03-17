@@ -8,6 +8,7 @@ use clap::ArgMatches;
 ///
 /// This function configures the logger to output log messages using the `ISO` date format and
 /// verbosity levels specified by the verbosity arguments (within [`clap::ArgMatches`]).
+///
 /// The arguments set the output verbosity for this crate to a maximum log level of either:
 /// [`log::LevelFilter::Info`], [`log::LevelFilter::Debug`], [`log::LevelFilter::Trace`],
 /// [`log::LevelFilter::Off`].

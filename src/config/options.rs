@@ -66,7 +66,7 @@ impl Default for Options {
 
             completion_shell: Shell::Zsh,
 
-            templates: ["".to_string()].to_vec(),
+            templates: vec!["".to_string()],
         };
     }
 }
@@ -147,7 +147,6 @@ impl Options {
         use clap_complete::generate;
         use std::io;
 
-        println!("{}", self.completion_shell);
         generate(
             self.completion_shell,
             &mut build_cli()?,

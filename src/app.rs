@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-//! The `app` module defines elements that perform the user-availed tasks.
+//! The `app` module defines user-executable tasks.
 
 /* `self::`` doesn't work here.
  *
@@ -33,7 +33,7 @@ macro_rules! absolute_repo_path {
 /// `Binary tree hash-map` alias for simplicity.
 type TemplatePaths = BTreeMap<String, Vec<String>>;
 
-/// Const specifying the column limit to wrap an [`Operation::ListTemplates`] list line.
+/// Const specifying the column limit to wrap an [`Operation::ListAvailableTemplates`] list line.
 const TEMPLATE_LIST_OUTPUT_LIMIT: usize = 78;
 
 /// Const specifying the file content delimiter used.
@@ -83,7 +83,7 @@ pub fn run(mut app_options: Options) -> Result<(), Box<dyn StdErr>> {
     app_options.state.save_to_file()
 }
 
-/// Consolidates locally cached gitignore template files.
+/// Consolidates locally cached gitignore template(s).
 ///
 /// This function calls [`parse_templates`] then [`concatenate_templates`]  for the user defined
 /// gitignore template arguments, yielding a consolidated gitignore file.
@@ -130,7 +130,7 @@ fn generate_gitignore(app_options: &mut Options) -> Result<(), Box<dyn StdErr>> 
     Ok(())
 }
 
-/// Concatenates gitignore template files specified by the user.
+/// Concatenates gitignore template(s) specified by the user.
 ///
 /// This function acts on a [`TemplatePaths`] item for the template arguments specified by a user,
 /// consolidating the file paths listed within the item.
@@ -215,7 +215,7 @@ fn concatenate_templates(
     Ok(return_string)
 }
 
-/// Deduplicates gitignore template file content.
+/// Deduplicates gitignore template content.
 fn dedup_templates(
     template: &str,
     template_vec: &mut Vec<String>,
@@ -395,7 +395,7 @@ fn update_gitignore_repos(app_options: &mut Options) -> Result<(), Box<dyn StdEr
             }
             Err(_) => {
                 info!("Caching new repository: {}", repo_det.repo_path);
-                clone_repository(app_options, &repo_det)?;
+                fetch_repository(app_options, &repo_det)?;
             }
         };
 
@@ -407,8 +407,8 @@ fn update_gitignore_repos(app_options: &mut Options) -> Result<(), Box<dyn StdEr
     Ok(())
 }
 
-/// Clones a git repository into a local cache directory.
-fn clone_repository(
+/// Fetches a git repository for local caching.
+fn fetch_repository(
     app_options: &Options,
     repo_det: &RepoDetails,
 ) -> Result<Repository, Box<dyn StdErr>> {
@@ -445,7 +445,7 @@ fn generate_template_paths(app_options: &mut Options) -> Result<TemplatePaths, B
 
         // If the repository doesn't exist.
         if !Path::new(&absolute_repo_path).is_dir() {
-            clone_repository(&app_options, &repo_det)?;
+            fetch_repository(&app_options, &repo_det)?;
         };
 
         update_template_paths(&Path::new(&absolute_repo_path), &mut template_paths)?;

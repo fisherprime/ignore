@@ -13,7 +13,8 @@ use serde::{Deserialize, Serialize};
 /// [`u64`] constant specifying the amount of seconds in a day.
 const SECONDS_IN_DAY: u64 = 60 * 60 * 24;
 
-/// [`std::time::Duration`] constant specifying the time to consider a repository's content as stale.
+/// [`std::time::Duration`] constant specifying the duration after which a repository's content is
+/// stale.
 const REPO_UPDATE_LIMIT: Duration = Duration::from_secs(SECONDS_IN_DAY * 7);
 
 /// Constant specifying the location suffix of the last run state file from some parent directory
