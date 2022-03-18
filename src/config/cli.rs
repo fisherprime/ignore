@@ -6,7 +6,7 @@ use std::error::Error as StdErr;
 use std::ffi::OsString;
 use std::path::PathBuf;
 
-use clap::{Command,Result, Arg};
+use clap::{Arg, Command, Result};
 use clap_complete::Shell;
 
 use crate::errors::Error;
@@ -109,6 +109,6 @@ pub fn build_cli() -> Result<Command<'static>, Box<dyn StdErr>> {
                 .long("templates")
                 .value_name("TEMPLATE")
                 .takes_value(true)
-                .multiple_occurrences(true)
+                .multiple_values(true)
             )               ))
 }
