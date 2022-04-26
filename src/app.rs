@@ -373,6 +373,7 @@ fn update_gitignore_repos(app_options: &mut Options) -> Result<(), Box<dyn StdEr
 
     let mut checkout = CheckoutBuilder::new();
 
+    // TODO: make operation concurrent.
     for repo_det in app_options.config.repo_config.repo_details.iter() {
         /* let repo: Repository;
          * let fetch_head: Object; */
@@ -387,10 +388,23 @@ fn update_gitignore_repos(app_options: &mut Options) -> Result<(), Box<dyn StdEr
             Ok(repo) => {
                 debug!("Updating cached repository: {}", repo_det.repo_path);
 
-                repo.find_remote("origin")?.fetch(&["master"], None, None)?;
-                let fetch_head = repo
-                    .find_reference("FETCH_HEAD")?
-                    .peel(git2::ObjectType::Any)?;
+                let mut remote = repo.find_remote("origin")?;
+                remote.fetch(&[""], None, None)?;
+
+                /* match remote.fetch(&["master"], None, None) {
+                 *     Ok(_) => (),
+                 *     Err(_) => {
+                 *         // Attempt to use main for the branch.
+                 *         remote.fetch(&["main"], None, None)?;
+                 *     }
+                 * } */
+
+                let fetch_head: git2::Object;
+                match repo.find_reference("FETCH_HEAD") {
+                    Ok(repo_ref) => fetch_head = repo_ref.peel(git2::ObjectType::Any)?,
+                    Err(_) => continue,
+                }
+
                 repo.reset(&fetch_head, git2::ResetType::Hard, Some(&mut checkout))?;
             }
             Err(_) => {
