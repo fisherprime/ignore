@@ -19,6 +19,7 @@ use std::path::Path;
 use std::time::SystemTime;
 
 use git2::Repository;
+use regex::Regex;
 
 // Macro used to reduce repetition when defining a cached repository's absolute path.
 macro_rules! absolute_repo_path {
@@ -41,6 +42,11 @@ const FILE_CONTENT_DELIMITER: &str = "# ----";
 
 /// Const specifying the delimiter for supplementary template content
 const TEMPLATE_SUPPLEMENT_DELIMITER: &str = "# ****";
+
+lazy_static! {
+    static ref GITIGNORE_ENTRY_REGEX: Regex =
+        Regex::new(r"[\*/!]").expect("Failed to compile gitignore entry regex");
+}
 
 /// Handles the execution of `ignore`'s functions.
 ///
@@ -144,8 +150,9 @@ fn concatenate_templates(
 
     if available_templates.is_empty() {
         warn!(
-        "None of the specified template(s) could not be located (names are case sensitive): {:?}",
-        requested_templates);
+            "Could not locate template(s) (names are case sensitive): {:?}",
+            requested_templates
+        );
         return Err(Box::new(Error::from(ErrorKind::MissingTemplates)));
     }
 
@@ -172,7 +179,7 @@ fn concatenate_templates(
                     );
                 }
                 Err(err) => {
-                    error!("Error opening gitignore template file: {}", err);
+                    error!("Failed to open gitignore template file: {}", err);
                     continue;
                 }
             };
@@ -201,8 +208,9 @@ fn concatenate_templates(
 
     if templates_used.is_empty() {
         warn!(
-        "None of the specified template(s) could not be located (names are case sensitive): {:?}",
-        requested_templates);
+            "Could not use template(s) (names are case sensitive): {:?}",
+            requested_templates
+        );
         return Err(Box::new(Error::from(ErrorKind::MissingTemplates)));
     }
 
@@ -220,20 +228,11 @@ fn dedup_templates(
     template: &str,
     template_vec: &mut Vec<String>,
 ) -> Result<String, Box<dyn StdErr>> {
-    use regex::Regex;
-
     // FIXME: Review this function for a better approach if any.
     // Iterating over all the lines for subsequent template files of a given technology seems
     // wasteful, they shouldn't be more than one so...
 
     info!("Deduplicating gitignore template entries for: {}", template);
-
-    // NOTE: recommended by the `regex` crate's developers to avoid recompilation of the regex rule
-    // on subsequent runs.
-    lazy_static! {
-        static ref GITIGNORE_ENTRY_REGEX: Regex =
-            Regex::new(r"[\*/!]").expect("Failed to compile gitignore entry regex");
-    }
 
     let primary_content = template_vec[0].clone();
     let mut insert_string = String::new();
@@ -269,7 +268,7 @@ fn dedup_templates(
 
     insert_string.push_str(&format!("{}\n", TEMPLATE_SUPPLEMENT_DELIMITER));
     info!(
-        "Caveman-like deduplication performed on the `{}` gitignore template, review the output",
+        "`{}` gitignore templates deduplicated, review the output",
         template
     );
 
@@ -375,10 +374,9 @@ fn update_gitignore_repos(app_options: &mut Options) -> Result<(), Box<dyn StdEr
 
     // TODO: make operation concurrent.
     for repo_det in app_options.config.repo_config.repo_details.iter() {
-        /* let repo: Repository;
-         * let fetch_head: Object; */
-
-        if !repo_det.auto_update && app_options.operation != Operation::UpdateRepositories {
+        let update_cond = !repo_det.repo_url.is_empty()
+            && (repo_det.auto_update || app_options.operation == Operation::UpdateRepositories);
+        if !update_cond {
             continue;
         }
 
@@ -386,18 +384,27 @@ fn update_gitignore_repos(app_options: &mut Options) -> Result<(), Box<dyn StdEr
 
         match Repository::discover(&absolute_repo_path) {
             Ok(repo) => {
-                debug!("Updating cached repository: {}", repo_det.repo_path);
+                debug!("updating cached repository: {}", repo_det.repo_path);
 
                 let mut remote = repo.find_remote("origin")?;
-                remote.fetch(&[""], None, None)?;
+                // remote.fetch(&[""], None, None)?;
 
-                /* match remote.fetch(&["master"], None, None) {
-                 *     Ok(_) => (),
-                 *     Err(_) => {
-                 *         // Attempt to use main for the branch.
-                 *         remote.fetch(&["main"], None, None)?;
-                 *     }
-                 * } */
+                // Work on repo's with the HEAD set to a branch.
+                let head = repo.head()?;
+                if !head.is_branch() {
+                    info!(
+                        "Gitignore repo's HEAD is not a branch, skipping: {}",
+                        repo_det.repo_path
+                    )
+                }
+
+                // Get branch name from HEAD reference.
+                match head.name() {
+                    Some(branch) => {
+                        remote.fetch(&[branch], None, None)?;
+                    }
+                    None => (),
+                }
 
                 let fetch_head: git2::Object;
                 match repo.find_reference("FETCH_HEAD") {
@@ -408,6 +415,10 @@ fn update_gitignore_repos(app_options: &mut Options) -> Result<(), Box<dyn StdEr
                 repo.reset(&fetch_head, git2::ResetType::Hard, Some(&mut checkout))?;
             }
             Err(_) => {
+                if repo_det.repo_url.is_empty() {
+                    ()
+                }
+
                 info!("Caching new repository: {}", repo_det.repo_path);
                 fetch_repository(app_options, &repo_det)?;
             }

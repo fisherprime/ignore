@@ -100,7 +100,6 @@ impl From<ErrorKind> for Error {
     }
 }
 
-
 /// [`From`] trait implementation to convert a [`String`] to an [`Error`].
 impl From<String> for Error {
     fn from(message: String) -> Self {
