@@ -25,16 +25,16 @@ mod errors;
 mod utils;
 
 use app::run;
-use config::options::Options;
+use config::runtime::RuntimeConfig;
 
 /// This is the entry point for `ignore`'s binary.
 ///
-/// This function sets up the runtime environment [`Options`] then executes the specified operation.
+/// This function sets up the runtime environment [`RuntimeConfig`] then executes the specified operation.
 fn main() {
-    Options::default()
+    RuntimeConfig::default()
         .load()
-        .map(|app_options| {
-            run(app_options).unwrap_or_else(|err| error!("Application error: {}", err))
+        .map(|app_conf| {
+            run(app_conf).unwrap_or_else(|err| error!("Application error: {}", err))
         })
         .unwrap_or_else(|err| error!("Application error: {}", err));
 }

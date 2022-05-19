@@ -8,7 +8,7 @@
  * Note: `super::` & `self::` are relative to the current module while `crate::` is relative to the
  * crate root.
  */
-use crate::config::{config::RepoDetails, options::Operation, options::Options};
+use crate::config::{config::RepoConfig, runtime::Operation, runtime::RuntimeConfig};
 use crate::errors::{Error, ErrorKind};
 
 use std::collections::btree_map::BTreeMap;
@@ -24,10 +24,7 @@ use regex::Regex;
 // Macro used to reduce repetition when defining a cached repository's absolute path.
 macro_rules! absolute_repo_path {
     ($parent:expr, $base:expr) => {
-        format!(
-            "{}/{}",
-            $parent.config.repo_config.repo_cache_dir, $base.repo_path
-        )
+        format!("{}/{}", $parent.config.repository.cache_dir, $base.path)
     };
 }
 
@@ -50,7 +47,7 @@ lazy_static! {
 
 /// Handles the execution of `ignore`'s functions.
 ///
-/// Using the parsed [`Options`], this function runs a task specified by the user in `ignore`'s
+/// Using the parsed [`RuntimeConfig`], this function runs a task specified by the user in `ignore`'s
 /// arguments then updates the config file.
 /// This function returns an error to the calling function on occurrence.
 ///
@@ -61,32 +58,30 @@ lazy_static! {
 /// // mod config;
 ///
 /// use crate::app::run;
-/// use crate::config::Options;
+/// use crate::config::RuntimeConfig;
 ///
-/// Options::parse().map(|opts| {
+/// RuntimeConfig::parse().map(|opts| {
 ///     run(opts)
 ///         .unwrap_or_else(|err| panic!("Application error: {}", err))
 /// })
 /// ```
-pub fn run(mut app_options: Options) -> Result<(), Box<dyn StdErr>> {
-    if app_options.state.check_staleness(&SystemTime::now())? {
-        update_gitignore_repos(&mut app_options)?;
-        if app_options.operation == Operation::UpdateRepositories {
-            app_options.config.save_file()?;
-            return app_options.state.save_to_file();
+pub fn run(mut app_confg: RuntimeConfig) -> Result<(), Box<dyn StdErr>> {
+    if app_confg.state.check_staleness(&SystemTime::now())? {
+        update_gitignore_repos(&mut app_confg)?;
+        if app_confg.operation == Operation::UpdateRepositories {
+            return app_confg.state.save_to_file();
         }
     }
 
-    match app_options.operation {
-        Operation::GenerateGitignore => generate_gitignore(&mut app_options)?,
-        Operation::ListAvailableTemplates => list_templates(&mut app_options)?,
-        Operation::UpdateRepositories => update_gitignore_repos(&mut app_options)?,
-        Operation::GenerateCompletions => app_options.generate_completions()?,
+    match app_confg.operation {
+        Operation::GenerateGitignore => generate_gitignore(&mut app_confg)?,
+        Operation::ListAvailableTemplates => list_templates(&mut app_confg)?,
+        Operation::UpdateRepositories => update_gitignore_repos(&mut app_confg)?,
+        Operation::GenerateCompletions => app_confg.generate_completions()?,
         Operation::Else => info!("No operation specified, this shouldn't have happened"),
     }
 
-    app_options.config.save_file()?;
-    app_options.state.save_to_file()
+    app_confg.state.save_to_file()
 }
 
 /// Consolidates locally cached gitignore template(s).
@@ -103,35 +98,35 @@ pub fn run(mut app_options: Options) -> Result<(), Box<dyn StdErr>> {
 /// // mod config;
 ///
 /// use app::generate_gitignore;
-/// use config::Options;
+/// use config::RuntimeConfig;
 ///
-/// Options::parse()
-///     .map(|opts| generate_gitignore(&mut opts))
+/// RuntimeConfig::parse()
+///     .map(|app_conf| generate_gitignore(&mut app_conf))
 ///     .unwrap_or_else(|err| panic!("Application error: {}", err))
 ///
 /// ```
-fn generate_gitignore(app_options: &mut Options) -> Result<(), Box<dyn StdErr>> {
+fn generate_gitignore(app_confg: &mut RuntimeConfig) -> Result<(), Box<dyn StdErr>> {
     use std::fs::OpenOptions;
 
     info!("Generating gitignore");
 
     let consolidation_string: String;
 
-    let available_templates = parse_templates(app_options)?;
+    let available_templates = parse_templates(app_confg)?;
     debug!("Available templates: {:#?}", available_templates);
 
-    consolidation_string = concatenate_templates(&app_options.templates, available_templates)?;
+    consolidation_string = concatenate_templates(&app_confg.templates, available_templates)?;
 
     let mut consolidation_file = OpenOptions::new()
         .read(true)
         .write(true)
         .create(true)
-        .open(&app_options.gitignore_output_file)?;
+        .open(&app_confg.gitignore_output_file)?;
     debug!("Opened gitignore template consolidation file");
 
     consolidation_file.set_len(0)?;
     consolidation_file.write_all(consolidation_string.as_bytes())?;
-    info!("Generated gitignore: {}", app_options.gitignore_output_file);
+    info!("Generated gitignore: {}", app_confg.gitignore_output_file);
 
     Ok(())
 }
@@ -277,7 +272,7 @@ fn dedup_templates(
 
 /// Lists the names of projects, tools, languages,… from a locally cached gitignore template
 /// repository.
-fn list_templates(app_options: &mut Options) -> Result<(), Box<dyn StdErr>> {
+fn list_templates(app_conf: &mut RuntimeConfig) -> Result<(), Box<dyn StdErr>> {
     // FIXME: Review this function for a better approach if any.
 
     info!("Listing available templates");
@@ -285,7 +280,7 @@ fn list_templates(app_options: &mut Options) -> Result<(), Box<dyn StdErr>> {
     let mut template_list = String::new();
     let mut template_list_line_len = template_list.len();
 
-    let template_paths = generate_template_paths(app_options)?;
+    let template_paths = generate_template_paths(app_conf)?;
 
     // NOTE: This sort is necessary to achieve a sorted list, unless the `BTreeMap`'s sort is
     // altered.
@@ -333,13 +328,13 @@ fn list_templates(app_options: &mut Options) -> Result<(), Box<dyn StdErr>> {
 /// desired by a user.
 /// Using the output of [`generate_template_paths`], the [`TemplatePaths`] is filtered to contain
 /// entries explicitly requested by the user.
-fn parse_templates(app_options: &mut Options) -> Result<TemplatePaths, Box<dyn StdErr>> {
+fn parse_templates(app_conf: &mut RuntimeConfig) -> Result<TemplatePaths, Box<dyn StdErr>> {
     debug!("Parsing template options");
 
-    let template_list = app_options.templates.clone();
+    let template_list = app_conf.templates.clone();
 
     let mut available_templates = TemplatePaths::new();
-    let template_paths = generate_template_paths(app_options)?;
+    let template_paths = generate_template_paths(app_conf)?;
 
     for template in template_list {
         // NOTE: The `clippy::option_map_unit_fn` warning was thrown for using a `map` on the below
@@ -365,7 +360,7 @@ fn parse_templates(app_options: &mut Options) -> Result<TemplatePaths, Box<dyn S
 /// [`const REPO_UPDATE_LIMIT`]) & the update operation isn't desired by the user.
 ///
 /// REF: [github/nabijaczleweli](https://github.com/nabijaczleweli/cargo-update/blob/master/src/ops/mod.rs)
-fn update_gitignore_repos(app_options: &mut Options) -> Result<(), Box<dyn StdErr>> {
+fn update_gitignore_repos(app_conf: &mut RuntimeConfig) -> Result<(), Box<dyn StdErr>> {
     use git2::build::CheckoutBuilder;
 
     info!("Updating gitignore repo(s)");
@@ -373,34 +368,32 @@ fn update_gitignore_repos(app_options: &mut Options) -> Result<(), Box<dyn StdEr
     let mut checkout = CheckoutBuilder::new();
 
     // TODO: make operation concurrent.
-    for repo_det in app_options.config.repo_config.repo_details.iter() {
-        let update_cond = !repo_det.repo_url.is_empty()
-            && (repo_det.auto_update || app_options.operation == Operation::UpdateRepositories);
+    for conf in app_conf.config.repository.config.iter() {
+        let update_cond = !conf.url.is_empty()
+            && (conf.auto_update || app_conf.operation == Operation::UpdateRepositories);
         if !update_cond {
             continue;
         }
 
-        let absolute_repo_path = absolute_repo_path!(app_options, repo_det);
+        let absolute_repo_path = absolute_repo_path!(app_conf, conf);
 
         match Repository::discover(&absolute_repo_path) {
             Ok(repo) => {
-                debug!("updating cached repository: {}", repo_det.repo_path);
-
-                let mut remote = repo.find_remote("origin")?;
-                // remote.fetch(&[""], None, None)?;
+                debug!("Updating cached repository: {}", conf.path);
 
                 // Work on repo's with the HEAD set to a branch.
                 let head = repo.head()?;
                 if !head.is_branch() {
                     info!(
                         "Gitignore repo's HEAD is not a branch, skipping: {}",
-                        repo_det.repo_path
+                        conf.path
                     )
                 }
 
                 // Get branch name from HEAD reference.
                 match head.name() {
                     Some(branch) => {
+                        let mut remote = repo.find_remote("origin")?;
                         remote.fetch(&[branch], None, None)?;
                     }
                     None => (),
@@ -415,62 +408,58 @@ fn update_gitignore_repos(app_options: &mut Options) -> Result<(), Box<dyn StdEr
                 repo.reset(&fetch_head, git2::ResetType::Hard, Some(&mut checkout))?;
             }
             Err(_) => {
-                if repo_det.repo_url.is_empty() {
-                    ()
-                }
-
-                info!("Caching new repository: {}", repo_det.repo_path);
-                fetch_repository(app_options, &repo_det)?;
+                info!("Caching new repository: {}", conf.path);
+                fetch_repository(app_conf, &conf)?;
             }
         };
 
-        info!("Updated gitignore repo: {}", repo_det.repo_path);
+        info!("Updated gitignore repo: {}", conf.path);
     }
 
-    app_options.state.last_update = SystemTime::now();
+    app_conf.state.last_update = SystemTime::now();
 
     Ok(())
 }
 
 /// Fetches a git repository for local caching.
 fn fetch_repository(
-    app_options: &Options,
-    repo_det: &RepoDetails,
+    app_conf: &RuntimeConfig,
+    conf: &RepoConfig,
 ) -> Result<Repository, Box<dyn StdErr>> {
     use std::fs::DirBuilder;
 
-    info!("Cloning gitignore repo: {}", repo_det.repo_path);
+    info!("Cloning gitignore repo: {}", conf.path);
 
-    let absolute_repo_path = absolute_repo_path!(app_options, repo_det);
+    let absolute_repo_path = absolute_repo_path!(app_conf, conf);
 
     DirBuilder::new()
         .recursive(true)
-        .create(&app_options.config.repo_config.repo_cache_dir)?;
+        .create(&app_conf.config.repository.cache_dir)?;
 
     // NOTE: Wrapped in `Ok` to allow for the conversion of `git::error::Error` to `Box<dyn std::error::Error>`.
-    Ok(Repository::clone_recurse(
-        &repo_det.repo_url,
-        &absolute_repo_path,
-    )?)
+    Ok(Repository::clone_recurse(&conf.url, &absolute_repo_path)?)
 }
 
 /// Generates a [`TemplatePaths`] item.
 ///
 /// This function prepares a [`TemplatePaths`] variable then calls [`update_template_paths`] to
 /// update it.
-fn generate_template_paths(app_options: &mut Options) -> Result<TemplatePaths, Box<dyn StdErr>> {
+fn generate_template_paths(app_conf: &mut RuntimeConfig) -> Result<TemplatePaths, Box<dyn StdErr>> {
     let mut template_paths = TemplatePaths::new();
 
-    for repo_det in app_options.config.repo_config.repo_details.iter() {
-        if repo_det.ignore {
+    for conf in app_conf.config.repository.config.iter() {
+        if conf.skip {
             continue;
         }
 
-        let absolute_repo_path = absolute_repo_path!(app_options, repo_det);
+        let absolute_repo_path = absolute_repo_path!(app_conf, conf);
 
         // If the repository doesn't exist.
         if !Path::new(&absolute_repo_path).is_dir() {
-            fetch_repository(&app_options, &repo_det)?;
+            // And the repository is not a repository.
+            if !conf.url.is_empty() {
+                fetch_repository(&app_conf, &conf)?;
+            }
         };
 
         update_template_paths(&Path::new(&absolute_repo_path), &mut template_paths)?;

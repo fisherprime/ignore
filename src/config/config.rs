@@ -28,34 +28,34 @@ pub struct Config {
     config_path: String,
 
     /// Repository specific configuration options.
-    pub repo_config: RepoConfig,
+    pub repository: BaseRepoConfig,
 }
 
 /// `struct` containing the config file's common repository options and an array of repository
 /// specific runtime options.
 #[derive(Deserialize, Serialize, PartialEq, Debug, Clone)]
-pub struct RepoConfig {
+pub struct BaseRepoConfig {
     /// Directory containing cached gitignore repositories.
-    pub repo_cache_dir: String,
+    pub cache_dir: String,
 
-    /// [`RepoDetails`] for multiple template repositories.
-    pub repo_details: Vec<RepoDetails>,
+    /// [`RepoConfig`] for multiple template repositories.
+    pub config: Vec<RepoConfig>,
 }
 
 /// `struct` containing the config file's repository specific runtime options.
 #[derive(Deserialize, Serialize, PartialEq, Debug, Clone)]
-pub struct RepoDetails {
+pub struct RepoConfig {
     /// Choice of automatic (cached) repository updates.
     pub auto_update: bool,
 
     /// Choice of ignoring repository usage in `ignore`'s operations.
-    pub ignore: bool,
+    pub skip: bool,
 
-    /// Gitignore template's local cache directory relative to [`RepoConfig::repo_cache_dir`].
-    pub repo_path: String,
+    /// Gitignore template's local cache directory relative to [`BaseRepoConfig::cache_dir`].
+    pub path: String,
 
     /// URL of git repository containing gitignore templates.
-    pub repo_url: String,
+    pub url: String,
 }
 
 impl Default for Config {
@@ -101,13 +101,13 @@ impl Default for Config {
 
         Self {
             config_path: "".to_owned(),
-            repo_config: RepoConfig {
-                repo_cache_dir: r_cache_dir.into_os_string().into_string().unwrap(),
-                repo_details: vec![RepoDetails {
+            repository: BaseRepoConfig {
+                cache_dir: r_cache_dir.into_os_string().into_string().unwrap(),
+                config: vec![RepoConfig {
                     auto_update: false,
-                    ignore: false,
-                    repo_url: default_gitignore_repo,
-                    repo_path: r_path,
+                    skip: false,
+                    url: default_gitignore_repo,
+                    path: r_path,
                 }],
             },
         }
@@ -122,8 +122,6 @@ impl Config {
 
         debug!("Loading config file");
 
-        let mut config_file_content = String::new();
-
         if !Path::new(&config_file_path).exists() {
             create_file(&Path::new(&config_file_path))?;
         }
@@ -135,6 +133,7 @@ impl Config {
             .open(config_file_path)?;
         self.config_path = config_file_path.to_owned();
 
+        let mut config_file_content = String::new();
         if config_file
             .read_to_string(&mut config_file_content)
             .unwrap_or(0)
@@ -175,6 +174,7 @@ impl Config {
     }
 
     /// Saves the content of the current [`Config`] to the config file.
+    #[allow(dead_code)]
     pub fn save_file(&self) -> Result<(), Box<dyn StdErr>> {
         debug!("Updating config file: {}", self.config_path);
 
@@ -200,7 +200,7 @@ mod tests {
      */
     /*     #[test]
      *     fn option_load_test() {
-     *         let options = match Options::load() {
+     *         let options = match RuntimeConfig::load() {
      *             Some(val) => val,
      *             None => None,
      *         };
@@ -218,13 +218,13 @@ mod tests {
 
         let test_config = Config {
             config_path: "".to_owned(),
-            repo_config: RepoConfig {
-                repo_cache_dir: parent_dir.into_os_string().into_string().unwrap(),
-                repo_details: vec![RepoDetails {
+            repository: BaseRepoConfig {
+                cache_dir: parent_dir.into_os_string().into_string().unwrap(),
+                config: vec![RepoConfig {
                     auto_update: false,
-                    ignore: false,
-                    repo_url: GITIGNORE_DEFAULT_REPO.to_owned(),
-                    repo_path: "github/gitignore".to_owned(),
+                    skip: false,
+                    url: GITIGNORE_DEFAULT_REPO.to_owned(),
+                    path: "github/gitignore".to_owned(),
                 }],
             },
         };

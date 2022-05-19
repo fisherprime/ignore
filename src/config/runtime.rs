@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-//! The `options` module defines elements necessary for the configuration of [`Options`] (contains
+//! The `options` module defines elements necessary for the configuration of [`RuntimeConfig`] (contains
 //! the runtime options).
 
 use crate::config::cli::{build_cli, APP_NAME};
@@ -16,7 +16,7 @@ use clap_complete::Shell;
 
 /// `struct` containing runtime options gathered from the config file and command arguments.
 #[derive(Debug, Clone)]
-pub struct Options {
+pub struct RuntimeConfig {
     /// Argument as read by [`clap`].
     matches: ArgMatches,
 
@@ -54,8 +54,8 @@ pub enum Operation {
     Else,
 }
 
-/// Default implementation for [`Options`].
-impl Default for Options {
+/// Default implementation for [`RuntimeConfig`].
+impl Default for RuntimeConfig {
     fn default() -> Self {
         return Self {
             matches: ArgMatches::default(),
@@ -71,10 +71,10 @@ impl Default for Options {
     }
 }
 
-/// Method implementations for [`Options`].
-impl Options {
+/// Method implementations for [`RuntimeConfig`].
+impl RuntimeConfig {
     /// Load options from the arguments, config file & state file.
-    pub fn load(&mut self) -> Result<Options, Box<dyn StdErr>> {
+    pub fn load(&mut self) -> Result<RuntimeConfig, Box<dyn StdErr>> {
         use super::logger::setup_logger;
 
         debug!("Parsing command arguments & config file");
@@ -88,7 +88,7 @@ impl Options {
 
         self.config
             .load(
-                &self
+                &mut  self
                     .matches
                     .value_of("config")
                     .unwrap_or_default()
@@ -108,7 +108,7 @@ impl Options {
         Ok(self.clone())
     }
 
-    /// Configures the `Options` to execute subcommand selected by the user.
+    /// Configures the `RuntimeConfig` to execute subcommand selected by the user.
     ///
     /// This function checks for the presence of [`clap::Subcommand`]s & [`clap::Arg`]s as provided
     /// in the [`clap::ArgMatches`] struct.
