@@ -6,6 +6,7 @@ use std::error::Error as StdErr;
 use std::ffi::OsString;
 use std::path::PathBuf;
 
+use clap::builder::EnumValueParser;
 use clap::{Arg, Command, Result};
 use clap_complete::Shell;
 
@@ -78,7 +79,7 @@ pub fn build_cli() -> Result<Command<'static>, Box<dyn StdErr>> {
             Arg::new("shell")
             .help("Specify shell to generate completion script for")
             .value_name("SHELL")
-            .possible_values(Shell::possible_values())
+            .value_parser(EnumValueParser::<Shell>::new())
             .takes_value(true))
         )
         .subcommand(

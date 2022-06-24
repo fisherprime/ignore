@@ -13,8 +13,8 @@ repository = "https://gitlab.com/fisherprime/ignore"
 
 [dependencies]
 chrono = "0.4"
-clap = { version = "3.1", features = ["cargo"] }
-clap_complete = "3.1"
+clap = { version = "3.2", features = ["cargo"] }
+clap_complete = "3.2"
 dirs-next = "2.0"
 fern = "0.6"
 git2 = "0.14"
