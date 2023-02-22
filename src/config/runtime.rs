@@ -5,7 +5,7 @@
 
 use crate::config::cli::{build_cli, APP_NAME};
 
-use super::{config::Config, state::State};
+use super::{configs::Config, state::State};
 
 use std::error::Error as StdErr;
 use std::str::FromStr;
@@ -57,7 +57,7 @@ pub enum Operation {
 /// Default implementation for [`RuntimeConfig`].
 impl Default for RuntimeConfig {
     fn default() -> Self {
-        return Self {
+        Self {
             matches: ArgMatches::default(),
             config: Config::default(),
             state: State::default(),
@@ -67,7 +67,7 @@ impl Default for RuntimeConfig {
             completion_shell: Shell::Zsh,
 
             templates: vec!["".to_string()],
-        };
+        }
     }
 }
 
@@ -77,31 +77,31 @@ impl RuntimeConfig {
     pub fn load(&mut self) -> Result<RuntimeConfig, Box<dyn StdErr>> {
         use super::logger::setup_logger;
 
-        debug!("Parsing command arguments & config file");
+        debug!("parsing command arguments & config file");
 
         let now = SystemTime::now();
         self.state = State::new(&now).load()?;
 
-        self.matches = build_cli()?.get_matches();
-        debug!("Parsed command flags");
+        self.matches = build_cli().get_matches();
+        debug!("parsed command flags");
         setup_logger(&self.matches)?;
 
         self.config
             .load(
-                &mut  self
+                &self
                     .matches
-                    .value_of("config")
-                    .unwrap_or_default()
+                    .get_one::<String>("config")
+                    .expect("failed to use default config")
                     .to_owned(),
             )
             .unwrap_or_else(|err| {
-                error!("Config load error, using the default: {}", err);
+                error!("config load error, using the default: {}", err);
                 Config::default()
             });
         self.configure_operation();
 
         debug!(
-            "Loaded command arguments & config file, options: {:#?}",
+            "loaded command arguments & config file, options: {:#?}",
             self
         );
 
@@ -121,22 +121,23 @@ impl RuntimeConfig {
                 self.operation = Operation::GenerateGitignore;
 
                 self.gitignore_output_file = sub_matches
-                    .value_of("output")
-                    .unwrap_or_default()
+                    .get_one::<String>("output")
+                    .expect("failed to use default output")
                     .to_owned();
-                match sub_matches.values_of("template") {
-                    Some(templates_arg) => {
-                        self.templates = templates_arg
-                            .map(|tmpl| tmpl.to_owned())
-                            .collect::<Vec<String>>()
-                    }
-                    _ => {}
+                if let Some(templates_arg) = sub_matches.get_many::<String>("template") {
+                    self.templates = templates_arg
+                        .map(|tmpl| tmpl.to_owned())
+                        .collect::<Vec<String>>()
                 }
             }
             Some((COMPLETIONS_SUBCMD, sub_matches)) => {
                 self.operation = Operation::GenerateCompletions;
-                self.completion_shell =
-                    Shell::from_str(sub_matches.value_of("shell").unwrap()).unwrap_or(Shell::Zsh);
+                self.completion_shell = Shell::from_str(
+                    sub_matches
+                        .get_one::<String>("shell")
+                        .expect("failed to use default shell"),
+                )
+                .unwrap_or(Shell::Zsh);
             }
             _ => self.operation = Operation::Else,
         }
@@ -149,7 +150,7 @@ impl RuntimeConfig {
 
         generate(
             self.completion_shell,
-            &mut build_cli()?,
+            &mut build_cli(),
             APP_NAME,
             &mut io::stdout(),
         );

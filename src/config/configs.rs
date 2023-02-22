@@ -61,7 +61,6 @@ pub struct RepoConfig {
 impl Default for Config {
     fn default() -> Self {
         let default_gitignore_repo: String = GITIGNORE_DEFAULT_REPO.to_owned();
-        let r_path: String;
 
         let mut r_cache_dir: PathBuf;
 
@@ -71,17 +70,17 @@ impl Default for Config {
             .map(|comp| comp.as_os_str())
             .collect();
 
-        if gitignore_repo_path_components.len().lt(&2) {
-            r_path = format!(
+        let r_path: String = if gitignore_repo_path_components.len().lt(&2) {
+            format!(
                 "undefined/{}",
                 gitignore_repo_path_components
                     .pop()
                     .unwrap()
                     .to_str()
                     .unwrap()
-            );
+            )
         } else {
-            r_path = format!(
+            format!(
                 "{1}/{0}",
                 gitignore_repo_path_components
                     .pop()
@@ -93,8 +92,8 @@ impl Default for Config {
                     .unwrap()
                     .to_str()
                     .unwrap()
-            );
-        }
+            )
+        };
 
         r_cache_dir = dirs_next::cache_dir().expect("Error obtaining system's cache directory");
         r_cache_dir.push(GITIGNORE_REPO_CACHE_DIR);
@@ -120,10 +119,10 @@ impl Config {
     pub fn load(&mut self, config_file_path: &str) -> Result<Config, Box<dyn StdErr>> {
         use crate::utils::create_file;
 
-        debug!("Loading config file");
+        debug!("loading config file");
 
         if !Path::new(&config_file_path).exists() {
-            create_file(&Path::new(&config_file_path))?;
+            create_file(Path::new(&config_file_path))?;
         }
 
         let mut config_file = OpenOptions::new()
@@ -145,22 +144,22 @@ impl Config {
                         config_path: self.config_path.clone(),
                         ..cfg
                     };
-                    debug!("Loaded config file, config: {:#?}", config);
+                    debug!("loaded config file, config: {:#?}", config);
 
                     return Ok(config);
                 }
                 Err(_) => {
-                    info!("Config file is invalid, backing up");
+                    info!("config file is invalid, backing up");
                     std::fs::copy(config_file_path, format!("{}.bak", config_file_path))?;
                     config_file.set_len(0)?;
                 }
             }
         } else {
-            info!("Config file is empty, using default config values");
+            info!("config file is empty, using default config values");
         }
 
         self.update_file(&mut config_file)?;
-        debug!("Config: {:#?}", self);
+        debug!("config: {:#?}", self);
 
         Ok(self.clone())
     }
@@ -168,7 +167,7 @@ impl Config {
     /// Updates the content of the config file with the current [`Config`].
     fn update_file(&self, config_file: &mut File) -> Result<(), Box<dyn StdErr>> {
         config_file.write_all(toml::to_string(&self)?.as_bytes())?;
-        debug!("Updated config file");
+        debug!("updated config file");
 
         Ok(())
     }
@@ -176,7 +175,7 @@ impl Config {
     /// Saves the content of the current [`Config`] to the config file.
     #[allow(dead_code)]
     pub fn save_file(&self) -> Result<(), Box<dyn StdErr>> {
-        debug!("Updating config file: {}", self.config_path);
+        debug!("updating config file: {}", self.config_path);
 
         let mut config_file = OpenOptions::new()
             .read(true)
@@ -250,7 +249,7 @@ mod tests {
             .load(&config_path.clone().into_os_string().into_string().unwrap())
             .map(|cfg| cfg)
             .unwrap_or_else(|err| {
-                error!("Config load error, using the default: {}", err);
+                error!("config load error, using the default: {}", err);
                 config.clone()
             });
 
@@ -258,6 +257,6 @@ mod tests {
         config
             .load(&config_path.into_os_string().into_string().unwrap())
             .map(|cfg| assert!(cfg.eq(&config)))
-            .unwrap_or_else(|err| panic!("Could not load config: {}", err));
+            .unwrap_or_else(|err| panic!("could not load config: {}", err));
     }
 }

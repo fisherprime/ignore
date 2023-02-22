@@ -16,11 +16,11 @@ pub fn setup_logger(matches: &ArgMatches) -> Result<(), fern::InitError> {
     use fern::Dispatch;
     use log::LevelFilter;
 
-    debug!("Setting up logger");
+    debug!("setting up logger");
 
     let mut verbose = true;
 
-    let log_max_level = match matches.occurrences_of("verbosity") {
+    let log_max_level = match matches.get_count("verbosity") {
         0 => {
             verbose = false;
             LevelFilter::Info
@@ -60,7 +60,7 @@ pub fn setup_logger(matches: &ArgMatches) -> Result<(), fern::InitError> {
             .apply()?;
     }
 
-    debug!("Done setting up logger");
+    debug!("done setting up logger");
 
     Ok(())
 }

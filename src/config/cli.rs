@@ -6,8 +6,7 @@ use std::error::Error as StdErr;
 use std::ffi::OsString;
 use std::path::PathBuf;
 
-use clap::builder::EnumValueParser;
-use clap::{Arg, Command, Result};
+use clap::{Arg, ArgAction, Command};
 use clap_complete::Shell;
 
 use crate::errors::Error;
@@ -26,9 +25,8 @@ pub const GENERATE_SUBCMD: &str = "generate";
 lazy_static! {
     static ref CFG_FILE_PATH_BUF: PathBuf = {
         let mut default_config_file_path = PathBuf::new();
-        match dirs_next::config_dir() {
-            Some(v) => default_config_file_path = v,
-            None => {}
+        if let Some(v) = dirs_next::config_dir() {
+            default_config_file_path = v
         }
         default_config_file_path.push(DEFAULT_CONFIG_PATH);
         default_config_file_path
@@ -50,8 +48,9 @@ pub fn get_config_file_path() -> Result<OsString, Box<dyn StdErr>> {
 }
 
 /// Builds a [`clap::Command`].
-pub fn build_cli() -> Result<Command<'static>, Box<dyn StdErr>> {
-    Ok(Command::new(APP_NAME)
+// pub fn build_cli() -> Result<Command<'static>, Box<dyn StdErr>> {
+pub fn build_cli() -> Command {
+    Command::new(APP_NAME)
         .arg_required_else_help(true)
         .version(crate_version!())
         .about("A gitignore generator")
@@ -63,24 +62,25 @@ pub fn build_cli() -> Result<Command<'static>, Box<dyn StdErr>> {
             .long("config")
             .value_name("FILE")
             .default_value(*CFG_FILE)
-            .takes_value(true)
+            .value_parser( value_parser!(String))
         )
         .arg(
             Arg::new("verbosity")
             .help("Set the level of verbosity: -v or -vv")
             .short('v')
             .long("verbose")
-            .multiple_occurrences(true)
+            .action(ArgAction::Count)
+            // .multiple_occurrences(true)
         ).subcommand(
         Command::new(COMPLETIONS_SUBCMD)
-            .arg_required_else_help(true)
+        .arg_required_else_help(true)
         .about("Generate tab completion scripts")
         .arg(
             Arg::new("shell")
             .help("Specify shell to generate completion script for")
             .value_name("SHELL")
-            .value_parser(EnumValueParser::<Shell>::new())
-            .takes_value(true))
+            .value_parser(value_parser!(Shell))
+        )
         )
         .subcommand(
             Command::new(UPDATE_SUBCMD)
@@ -101,7 +101,7 @@ pub fn build_cli() -> Result<Command<'static>, Box<dyn StdErr>> {
                 .short('o')
                 .long("output")
                 .value_name("FILE")
-                .takes_value(true)
+                .value_parser(value_parser!(PathBuf))
             )
             .arg(
                 Arg::new("template")
@@ -109,7 +109,7 @@ pub fn build_cli() -> Result<Command<'static>, Box<dyn StdErr>> {
                 .short('t')
                 .long("templates")
                 .value_name("TEMPLATE")
-                .takes_value(true)
-                .multiple_values(true)
-            )               ))
+                .action(ArgAction::Append)
+            )               
+            )
 }

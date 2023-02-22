@@ -82,15 +82,15 @@ impl State {
                     state_path: self.state_path.clone(),
                     ..state
                 };
-                debug!("Done parsing state file, state: {:#?}", internal_state);
+                debug!("done parsing state file, state: {:#?}", internal_state);
 
                 return Ok(internal_state);
             }
         }
 
-        info!("State file is empty");
+        info!("state file is empty");
         self.update_file(&mut state_file)?;
-        debug!("State: {:#?}", self);
+        debug!("state: {:#?}", self);
 
         Ok(self.clone())
     }
@@ -98,14 +98,14 @@ impl State {
     /// Updates the content of the state file with the current [`State`].
     fn update_file(&self, state_file: &mut File) -> Result<(), Box<dyn StdErr>> {
         state_file.write_all(toml::to_string(&self)?.as_bytes())?;
-        debug!("Updated state file");
+        debug!("updated state file");
 
         Ok(())
     }
 
     /// Saves the content of the current [`State`] to the state file.
     pub fn save_to_file(&self) -> Result<(), Box<dyn StdErr>> {
-        debug!("Updating file: {}", self.state_path);
+        debug!("updating file: {}", self.state_path);
 
         let mut state_file = OpenOptions::new()
             .read(true)
@@ -128,7 +128,7 @@ impl State {
         let is_stale = { (last_update_duration > REPO_UPDATE_LIMIT) || now.eq(&self.last_update) };
 
         debug!(
-            "Last repo update: {:#?}, now: {:#?}, difference: {:#?}, is stale: {}",
+            "last repo update: {:#?}, now: {:#?}, difference: {:#?}, is stale: {}",
             self.last_update, now, last_update_duration, is_stale
         );
 

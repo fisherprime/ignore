@@ -22,6 +22,7 @@ extern crate lazy_static;
 mod app;
 mod config;
 mod errors;
+mod git;
 mod utils;
 
 use app::run;
@@ -33,8 +34,6 @@ use config::runtime::RuntimeConfig;
 fn main() {
     RuntimeConfig::default()
         .load()
-        .map(|app_conf| {
-            run(app_conf).unwrap_or_else(|err| error!("Application error: {}", err))
-        })
-        .unwrap_or_else(|err| error!("Application error: {}", err));
+        .map(|app_conf| run(app_conf).unwrap_or_else(|err| error!("application error: {}", err)))
+        .unwrap_or_else(|err| error!("application error: {}", err));
 }

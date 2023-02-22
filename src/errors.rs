@@ -110,3 +110,14 @@ impl From<String> for Error {
         }
     }
 }
+
+/// [`From`] trait implementation to convert a [`&str`] to an [`Error`].
+impl From<&str> for Error {
+    fn from(message: &str) -> Self {
+        Self {
+            kind: ErrorKind::Other,
+            other_message: String::from(message),
+            error: None,
+        }
+    }
+}

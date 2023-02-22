@@ -4,7 +4,7 @@
 //! environment.
 
 pub mod cli;
-pub mod config;
+pub mod configs;
 pub mod logger;
 pub mod runtime;
 pub mod state;
