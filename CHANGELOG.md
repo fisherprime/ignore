@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to RBAC will be documented in this file.
+All notable changes to ignore will be documented in this file.
 
 ## [unreleased]
 
