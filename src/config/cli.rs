@@ -12,9 +12,7 @@ use clap_complete::Shell;
 use crate::errors::Error;
 use crate::errors::ErrorKind;
 
-pub const APP_NAME: &str = "ignore";
-
-const DEFAULT_OUTPUT_FILE: &str = "gitignore";
+pub const DEFAULT_OUTPUT_FILE: &str = "gitignore";
 const DEFAULT_CONFIG_PATH: &str = "ignore/config.toml";
 
 pub const COMPLETIONS_SUBCMD: &str = "completions";
@@ -50,11 +48,11 @@ pub fn get_config_file_path() -> Result<OsString, Box<dyn StdErr>> {
 /// Builds a [`clap::Command`].
 // pub fn build_cli() -> Result<Command<'static>, Box<dyn StdErr>> {
 pub fn build_cli() -> Command {
-    Command::new(APP_NAME)
+    Command::new(crate_name!())
         .arg_required_else_help(true)
         .version(crate_version!())
-        .about("A gitignore generator")
-        .author("fisherprime")
+        .about(crate_description!())
+        .author(crate_authors!())
         .arg(
             Arg::new("config")
             .help("Load configuration from FILE")
@@ -108,6 +106,7 @@ pub fn build_cli() -> Command {
                 .help("Case sensitive (space-separated) list of TEMPLATE(s) to use in generating the gitignore file")
                 .short('t')
                 .long("templates")
+                .num_args(1..)
                 .value_name("TEMPLATE")
                 .action(ArgAction::Append)
             )               

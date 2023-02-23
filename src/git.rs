@@ -10,6 +10,8 @@ use git2::Repository;
 use std::error::Error as StdErr;
 use std::time::SystemTime;
 
+use rayon::prelude::*;
+
 /// Updates the cached gitignore template repositories (git only).
 ///
 /// This function fetches and merges the latest `HEAD` for an existing git repository, cloning one if
@@ -19,38 +21,40 @@ use std::time::SystemTime;
 ///
 /// REF: [github/nabijaczleweli](https://github.com/nabijaczleweli/cargo-update/blob/master/src/ops/mod.rs)
 #[allow(clippy::needless_late_init)]
-pub fn update_gitignore_repos(app_conf: &mut RuntimeConfig) -> Result<(), Box<dyn StdErr>> {
-    info!("updating gitignore repo(s)");
+pub fn update_gitignore_repos(app_conf: &mut RuntimeConfig) {
+    info!("git: updating gitignore repo(s)");
 
-    // TODO: make operation concurrent.
-    for conf in app_conf.config.repository.config.iter() {
-        let update_cond = !conf.url.is_empty()
-            && (conf.auto_update || app_conf.operation == Operation::UpdateRepositories);
-        if !update_cond {
-            continue;
-        }
+    app_conf
+        .config
+        .repository
+        .config
+        .par_iter()
+        .for_each(|conf| {
+            let update_cond = !conf.url.is_empty()
+                && (conf.auto_update || app_conf.operation == Operation::UpdateRepositories);
+            if update_cond {
+                if let Err(err) = update_repo(app_conf, conf) {
+                    error!("{}", err);
+                }
+            }
+        });
 
-        if let Err(err) = update_repo(app_conf, conf) {
-            error!("{}", err);
-        }
-    }
-
-    app_conf.state.last_update = SystemTime::now();
-
-    Ok(())
+    app_conf.state.last_update = SystemTime::now()
 }
 
 fn update_repo(app_conf: &RuntimeConfig, conf: &RepoConfig) -> Result<(), Box<dyn StdErr>> {
+    // fn update_repo(app_conf: &RuntimeConfig, conf: &RepoConfig) -> Box <dyn Future<Output =Result<(), Box<dyn StdErr>>> >{
+
     match Repository::discover(absolute_repo_path!(app_conf, conf)) {
         Ok(repo) => {
             use git2::build::CheckoutBuilder;
-            debug!("updating cached repository: {}", conf.path);
+            debug!("git: updating cached repository {}", conf.path);
 
             // Work on repo's with the HEAD set to a branch.
             let head = repo.head()?;
             if !head.is_branch() {
                 info!(
-                    "gitignore repo's HEAD is not a branch, skipping: {}",
+                    "git: gitignore repo's HEAD is not a branch, skipping {}",
                     conf.path
                 )
             }
@@ -72,12 +76,12 @@ fn update_repo(app_conf: &RuntimeConfig, conf: &RepoConfig) -> Result<(), Box<dy
             repo.reset(&fetch_head, git2::ResetType::Hard, Some(&mut checkout))?;
         }
         Err(_) => {
-            info!("caching new repository: {}", conf.path);
+            info!("git: caching new repository {}", conf.path);
             fetch_repository(app_conf, conf)?;
         }
     };
 
-    info!("updated gitignore repo: {}", conf.path);
+    info!("git: updated gitignore repo {}", conf.path);
 
     Ok(())
 }
@@ -89,7 +93,7 @@ pub fn fetch_repository(
 ) -> Result<Repository, Box<dyn StdErr>> {
     use std::fs::DirBuilder;
 
-    info!("cloning gitignore repo: {}", conf.path);
+    info!("git: cloning gitignore repo {}", conf.path);
 
     DirBuilder::new()
         .recursive(true)

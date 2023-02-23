@@ -19,6 +19,8 @@ extern crate clap;
 #[macro_use]
 extern crate lazy_static;
 
+extern crate rayon;
+
 mod app;
 mod config;
 mod errors;
@@ -34,6 +36,6 @@ use config::runtime::RuntimeConfig;
 fn main() {
     RuntimeConfig::default()
         .load()
-        .map(|app_conf| run(app_conf).unwrap_or_else(|err| error!("application error: {}", err)))
-        .unwrap_or_else(|err| error!("application error: {}", err));
+        .map(|app_conf| run(app_conf).unwrap_or_else(|err| error!("app: failed with: {}", err)))
+        .unwrap_or_else(|err| error!("app: failed with: {}", err));
 }

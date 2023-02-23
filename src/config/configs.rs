@@ -95,7 +95,8 @@ impl Default for Config {
             )
         };
 
-        r_cache_dir = dirs_next::cache_dir().expect("Error obtaining system's cache directory");
+        r_cache_dir =
+            dirs_next::cache_dir().expect("dirs: failed to obtain system's cache directory");
         r_cache_dir.push(GITIGNORE_REPO_CACHE_DIR);
 
         Self {
@@ -116,10 +117,10 @@ impl Default for Config {
 /// Method implementations for [`Config`].
 impl Config {
     /// Load config file content to generate the [`Config`] item.
-    pub fn load(&mut self, config_file_path: &str) -> Result<Config, Box<dyn StdErr>> {
+    pub fn load(&mut self, config_file_path: &str) -> Result<(), Box<dyn StdErr>> {
         use crate::utils::create_file;
 
-        debug!("loading config file");
+        debug!("config: file loading");
 
         if !Path::new(&config_file_path).exists() {
             create_file(Path::new(&config_file_path))?;
@@ -139,35 +140,35 @@ impl Config {
             > 0
         {
             match toml::from_str(config_file_content.trim()) {
-                Ok(cfg) => {
-                    let config = Config {
+                Ok(cfg_content) => {
+                    *self = Config {
                         config_path: self.config_path.clone(),
-                        ..cfg
+                        ..cfg_content
                     };
-                    debug!("loaded config file, config: {:#?}", config);
+                    debug!("config: file loaded {:#?}", self);
 
-                    return Ok(config);
+                    return Ok(());
                 }
                 Err(_) => {
-                    info!("config file is invalid, backing up");
+                    info!("config: invalid, backing up current config");
                     std::fs::copy(config_file_path, format!("{}.bak", config_file_path))?;
                     config_file.set_len(0)?;
                 }
             }
         } else {
-            info!("config file is empty, using default config values");
+            // Assuming [`Config::default`] was called.
         }
 
         self.update_file(&mut config_file)?;
-        debug!("config: {:#?}", self);
+        debug!("config: final values {:#?}", self);
 
-        Ok(self.clone())
+        Ok(())
     }
 
     /// Updates the content of the config file with the current [`Config`].
     fn update_file(&self, config_file: &mut File) -> Result<(), Box<dyn StdErr>> {
         config_file.write_all(toml::to_string(&self)?.as_bytes())?;
-        debug!("updated config file");
+        debug!("config: file updated");
 
         Ok(())
     }
@@ -175,7 +176,7 @@ impl Config {
     /// Saves the content of the current [`Config`] to the config file.
     #[allow(dead_code)]
     pub fn save_file(&self) -> Result<(), Box<dyn StdErr>> {
-        debug!("updating config file: {}", self.config_path);
+        debug!("config: file updating {}", self.config_path);
 
         let mut config_file = OpenOptions::new()
             .read(true)
@@ -191,7 +192,7 @@ impl Config {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::utils::create_file;
+    // use crate::utils::create_file;
 
     /**
      * Assert correctness of the default runtime options, includes the config.
@@ -231,32 +232,24 @@ mod tests {
         assert!(test_config.eq(&config));
     }
 
-    #[test]
-    /// Assert correctness of the loaded default config file.
-    fn config_file_load_test() {
-        let mut config = Config::default();
-
-        let mut config_path = dirs_next::config_dir().unwrap();
-        config_path.push("ignore/config.toml");
-
-        // Create default config file should it not exist.
-        if !Path::new(&config_path).exists() {
-            create_file(&Path::new(&config_path)).unwrap();
-        }
-
-        // Parse default config file; populate `Config` variable with default default config on error (non-existent).
-        config = config
-            .load(&config_path.clone().into_os_string().into_string().unwrap())
-            .map(|cfg| cfg)
-            .unwrap_or_else(|err| {
-                error!("config load error, using the default: {}", err);
-                config.clone()
-            });
-
-        // Parse current config file & assert is similar to the default.
-        config
-            .load(&config_path.into_os_string().into_string().unwrap())
-            .map(|cfg| assert!(cfg.eq(&config)))
-            .unwrap_or_else(|err| panic!("could not load config: {}", err));
-    }
+    // Useless.
+    /*     #[test]
+     *     /// Assert correctness of the loaded default config file.
+     *     fn config_file_load_test() {
+     *         let mut config_path = dirs_next::config_dir().unwrap();
+     *         config_path.push("ignore/config.toml");
+     *
+     *         // Create default config file should it not exist.
+     *         if !Path::new(&config_path).exists() {
+     *             create_file(&Path::new(&config_path)).unwrap();
+     *         }
+     *
+     *         // Parse default config file; populate `Config` variable with default default config on error (non-existent).
+     *         let mut config = Config::default();
+     *         config
+     *             .load(&config_path.clone().into_os_string().into_string().unwrap())
+     *             .unwrap();
+     *
+     *         assert!(config.eq(&Config::default()));
+     *     } */
 }

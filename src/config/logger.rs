@@ -16,7 +16,7 @@ pub fn setup_logger(matches: &ArgMatches) -> Result<(), fern::InitError> {
     use fern::Dispatch;
     use log::LevelFilter;
 
-    debug!("setting up logger");
+    debug!("logger: setting up");
 
     let mut verbose = true;
 
@@ -28,7 +28,7 @@ pub fn setup_logger(matches: &ArgMatches) -> Result<(), fern::InitError> {
         1 => LevelFilter::Debug,
         2 => LevelFilter::Trace,
         _ => {
-            println!("[WARN] Invalid verbosity level, defaulting to none");
+            println!("[WARN] logger: invalid verbosity level, defaulting to none");
             verbose = false;
             LevelFilter::Off
         }
@@ -60,7 +60,7 @@ pub fn setup_logger(matches: &ArgMatches) -> Result<(), fern::InitError> {
             .apply()?;
     }
 
-    debug!("done setting up logger");
+    debug!("logger: set up");
 
     Ok(())
 }

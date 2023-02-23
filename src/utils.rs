@@ -13,7 +13,7 @@ use std::path::Path;
 pub fn create_file(file_path: &Path) -> Result<(), Box<dyn StdErr>> {
     use std::fs::DirBuilder;
 
-    info!("creating file: {}", file_path.display());
+    info!("utils: creating file {}", file_path.display());
 
     let file_dir = Path::new(&file_path).parent().unwrap();
     if !file_dir.is_dir() {

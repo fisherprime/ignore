@@ -45,6 +45,7 @@ impl Default for State {
 /// Method implementations for [`State`].
 impl State {
     /// Creates a new [`State`] from a provided [`SystemTime`] reference.
+    #[allow(dead_code)]
     pub fn new(now: &SystemTime) -> Self {
         Self {
             last_update: now.checked_sub(Duration::from_secs(1)).unwrap(),
@@ -53,7 +54,7 @@ impl State {
     }
 
     /// Load state file content to generate the [`State`] item.
-    pub fn load(&mut self) -> Result<State, Box<dyn StdErr>> {
+    pub fn load(&mut self) -> Result<(), Box<dyn StdErr>> {
         use crate::utils::create_file;
 
         let mut state_file_path = dirs_next::cache_dir().unwrap();
@@ -78,34 +79,35 @@ impl State {
 
         if state_file.read_to_string(&mut state_content).unwrap_or(0) > 0 {
             if let Ok(state) = toml::from_str(state_content.trim()) {
-                let internal_state = State {
+                *self = State {
                     state_path: self.state_path.clone(),
                     ..state
                 };
-                debug!("done parsing state file, state: {:#?}", internal_state);
+                debug!("state: loaded file {:#?}", self);
 
-                return Ok(internal_state);
+                return Ok(());
             }
         }
 
-        info!("state file is empty");
+        info!("state: file is empty");
         self.update_file(&mut state_file)?;
-        debug!("state: {:#?}", self);
 
-        Ok(self.clone())
+        debug!("state: current values {:#?}", self);
+
+        Ok(())
     }
 
     /// Updates the content of the state file with the current [`State`].
     fn update_file(&self, state_file: &mut File) -> Result<(), Box<dyn StdErr>> {
         state_file.write_all(toml::to_string(&self)?.as_bytes())?;
-        debug!("updated state file");
+        debug!("state: file updated");
 
         Ok(())
     }
 
     /// Saves the content of the current [`State`] to the state file.
     pub fn save_to_file(&self) -> Result<(), Box<dyn StdErr>> {
-        debug!("updating file: {}", self.state_path);
+        debug!("state: file updating {}", self.state_path);
 
         let mut state_file = OpenOptions::new()
             .read(true)
@@ -128,7 +130,7 @@ impl State {
         let is_stale = { (last_update_duration > REPO_UPDATE_LIMIT) || now.eq(&self.last_update) };
 
         debug!(
-            "last repo update: {:#?}, now: {:#?}, difference: {:#?}, is stale: {}",
+            "state: last repo update = {:#?}, now = {:#?}, difference = {:#?}, staleness = {}",
             self.last_update, now, last_update_duration, is_stale
         );
 

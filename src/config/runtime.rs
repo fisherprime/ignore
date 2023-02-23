@@ -3,13 +3,11 @@
 //! The `options` module defines elements necessary for the configuration of [`RuntimeConfig`] (contains
 //! the runtime options).
 
-use crate::config::cli::{build_cli, APP_NAME};
+use crate::config::cli::{build_cli, DEFAULT_OUTPUT_FILE};
 
 use super::{configs::Config, state::State};
 
-use std::error::Error as StdErr;
-use std::str::FromStr;
-use std::time::SystemTime;
+use std::{error::Error as StdErr, path::PathBuf};
 
 use clap::ArgMatches;
 use clap_complete::Shell;
@@ -77,33 +75,22 @@ impl RuntimeConfig {
     pub fn load(&mut self) -> Result<RuntimeConfig, Box<dyn StdErr>> {
         use super::logger::setup_logger;
 
-        debug!("parsing command arguments & config file");
-
-        let now = SystemTime::now();
-        self.state = State::new(&now).load()?;
-
         self.matches = build_cli().get_matches();
-        debug!("parsed command flags");
         setup_logger(&self.matches)?;
 
-        self.config
-            .load(
-                &self
-                    .matches
-                    .get_one::<String>("config")
-                    .expect("failed to use default config")
-                    .to_owned(),
-            )
-            .unwrap_or_else(|err| {
-                error!("config load error, using the default: {}", err);
-                Config::default()
-            });
+        debug!("cli: parsed command {:#?}", self.matches.clone());
+
+        self.state.load()?;
+        self.config.load(
+            &self
+                .matches
+                .get_one::<String>("config")
+                .expect("cli: unable to use default config")
+                .to_owned(),
+        )?;
         self.configure_operation();
 
-        debug!(
-            "loaded command arguments & config file, options: {:#?}",
-            self
-        );
+        debug!("cli: loaded runtime config {:#?}", self);
 
         Ok(self.clone())
     }
@@ -121,23 +108,22 @@ impl RuntimeConfig {
                 self.operation = Operation::GenerateGitignore;
 
                 self.gitignore_output_file = sub_matches
-                    .get_one::<String>("output")
-                    .expect("failed to use default output")
+                    .get_one::<PathBuf>("output")
+                    .expect("cli: unable to use default output")
+                    .to_str()
+                    .unwrap_or(DEFAULT_OUTPUT_FILE)
                     .to_owned();
                 if let Some(templates_arg) = sub_matches.get_many::<String>("template") {
                     self.templates = templates_arg
                         .map(|tmpl| tmpl.to_owned())
-                        .collect::<Vec<String>>()
+                        .collect::<Vec<_>>()
                 }
             }
             Some((COMPLETIONS_SUBCMD, sub_matches)) => {
                 self.operation = Operation::GenerateCompletions;
-                self.completion_shell = Shell::from_str(
-                    sub_matches
-                        .get_one::<String>("shell")
-                        .expect("failed to use default shell"),
-                )
-                .unwrap_or(Shell::Zsh);
+                self.completion_shell = *sub_matches
+                    .get_one::<Shell>("shell")
+                    .expect("cli: unable to use default shell")
             }
             _ => self.operation = Operation::Else,
         }
@@ -151,7 +137,7 @@ impl RuntimeConfig {
         generate(
             self.completion_shell,
             &mut build_cli(),
-            APP_NAME,
+            crate_name!(),
             &mut io::stdout(),
         );
 

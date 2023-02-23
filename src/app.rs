@@ -43,7 +43,7 @@ const TEMPLATE_SUPPLEMENT_DELIMITER: &str = "# ****";
 
 lazy_static! {
     static ref GITIGNORE_ENTRY_REGEX: Regex =
-        Regex::new(r"[\*/!]").expect("Failed to compile gitignore entry regex");
+        Regex::new(r"[\*/!]").expect("failed to compile gitignore entry regex");
 }
 
 /// Handles the execution of `ignore`'s functions.
@@ -63,12 +63,12 @@ lazy_static! {
 ///
 /// RuntimeConfig::parse().map(|opts| {
 ///     run(opts)
-///         .unwrap_or_else(|err| panic!("application error: {}", err))
+///         .unwrap_or_else(|err| panic!("app: failed with: {}", err))
 /// })
 /// ```
 pub fn run(mut app_confg: RuntimeConfig) -> Result<(), Box<dyn StdErr>> {
     if app_confg.state.check_staleness(&SystemTime::now())? {
-        update_gitignore_repos(&mut app_confg)?;
+        update_gitignore_repos(&mut app_confg);
         if app_confg.operation == Operation::UpdateRepositories {
             return app_confg.state.save_to_file();
         }
@@ -77,9 +77,9 @@ pub fn run(mut app_confg: RuntimeConfig) -> Result<(), Box<dyn StdErr>> {
     match app_confg.operation {
         Operation::GenerateGitignore => generate_gitignore(&mut app_confg)?,
         Operation::ListAvailableTemplates => list_templates(&mut app_confg)?,
-        Operation::UpdateRepositories => update_gitignore_repos(&mut app_confg)?,
+        Operation::UpdateRepositories => update_gitignore_repos(&mut app_confg),
         Operation::GenerateCompletions => app_confg.generate_completions()?,
-        Operation::Else => info!("no operation specified, this shouldn't have happened"),
+        Operation::Else => info!("app: no operation specified, this shouldn't have happened"),
     }
 
     app_confg.state.save_to_file()
@@ -103,29 +103,32 @@ pub fn run(mut app_confg: RuntimeConfig) -> Result<(), Box<dyn StdErr>> {
 ///
 /// RuntimeConfig::parse()
 ///     .map(|app_conf| generate_gitignore(&mut app_conf))
-///     .unwrap_or_else(|err| panic!("application error: {}", err))
+///     .unwrap_or_else(|err| panic!("app: failed with: {}", err))
 ///
 /// ```
 fn generate_gitignore(app_confg: &mut RuntimeConfig) -> Result<(), Box<dyn StdErr>> {
     use std::fs::OpenOptions;
 
-    info!("generating gitignore");
+    info!("app: generating gitignore");
 
     let available_templates = parse_templates(app_confg)?;
-    debug!("available templates: {:#?}", available_templates);
+    debug!("app: available templates {:#?}", available_templates);
 
     let mut consolidation_file = OpenOptions::new()
         .read(true)
         .write(true)
         .create(true)
         .open(&app_confg.gitignore_output_file)?;
-    debug!("opened gitignore template consolidation file");
+    debug!("app: opened gitignore template consolidation file");
 
     consolidation_file.set_len(0)?;
 
     let consolidation_string = concatenate_templates(&app_confg.templates, available_templates)?;
     consolidation_file.write_all(consolidation_string.as_bytes())?;
-    info!("generated gitignore: {}", app_confg.gitignore_output_file);
+    info!(
+        "app: generated gitignore {}",
+        app_confg.gitignore_output_file
+    );
 
     Ok(())
 }
@@ -144,7 +147,7 @@ fn concatenate_templates(
 
     if available_templates.is_empty() {
         warn!(
-            "Could not locate template(s) (names are case sensitive): {:?}",
+            "app: could not locate template(s) (names are case sensitive) {:?}",
             requested_templates
         );
         return Err(Box::new(Error::from(ErrorKind::MissingTemplates)));
@@ -168,12 +171,12 @@ fn concatenate_templates(
                     template_vec.push(buffer.to_owned());
 
                     debug!(
-                        "appended {} content to {} template vector",
+                        "app: appended {} content to {} template vector",
                         file_path, template
                     );
                 }
                 Err(err) => {
-                    error!("failed to open gitignore template file: {}", err);
+                    error!("app: failed to open gitignore template file {}", err);
                     continue;
                 }
             };
@@ -202,7 +205,7 @@ fn concatenate_templates(
 
     if templates_used.is_empty() {
         warn!(
-            "Could not use template(s) (names are case sensitive): {:?}",
+            "app: could not use template(s) (names are case sensitive) {:?}",
             requested_templates
         );
         return Err(Box::new(Error::from(ErrorKind::MissingTemplates)));
@@ -223,7 +226,10 @@ fn dedup_templates(template: &str, template_vec: &mut [String]) -> Result<String
     // Iterating over all the lines for subsequent template files of a given technology seems
     // wasteful, they shouldn't be more than one so...
 
-    info!("deduplicating gitignore template entries for: {}", template);
+    info!(
+        "app: deduplicating gitignore template entries for {}",
+        template
+    );
 
     let primary_content = template_vec[0].clone();
     let mut insert_string = String::new();
@@ -259,7 +265,7 @@ fn dedup_templates(template: &str, template_vec: &mut [String]) -> Result<String
 
     insert_string.push_str(&format!("{}\n", TEMPLATE_SUPPLEMENT_DELIMITER));
     info!(
-        "`{}` gitignore templates deduplicated, review the output",
+        "app: `{}` gitignore templates deduplicated, review the output",
         template
     );
 
@@ -271,7 +277,7 @@ fn dedup_templates(template: &str, template_vec: &mut [String]) -> Result<String
 fn list_templates(app_conf: &mut RuntimeConfig) -> Result<(), Box<dyn StdErr>> {
     // FIXME: Review this function for a better approach if any.
 
-    info!("listing available templates");
+    info!("app: listing available templates");
 
     let mut template_list = String::new();
     let mut template_list_line_len = template_list.len();
@@ -280,7 +286,7 @@ fn list_templates(app_conf: &mut RuntimeConfig) -> Result<(), Box<dyn StdErr>> {
 
     // NOTE: This sort is necessary to achieve a sorted list, unless the `BTreeMap`'s sort is
     // altered.
-    let mut template_identifiers: Vec<String> = template_paths.keys().cloned().collect();
+    let mut template_identifiers: Vec<_> = template_paths.keys().cloned().collect();
     template_identifiers.sort_by_key(|a| a.to_lowercase());
 
     // NOTE: This column print implementation yields the following average `time` results:
@@ -295,7 +301,7 @@ fn list_templates(app_conf: &mut RuntimeConfig) -> Result<(), Box<dyn StdErr>> {
         }
     }
     max_item_length += 1;
-    debug!("max list item length: {}", max_item_length);
+    debug!("app: max list item length {}", max_item_length);
 
     for key in template_identifiers.iter() {
         let mut key_string = key.to_string();
@@ -313,7 +319,7 @@ fn list_templates(app_conf: &mut RuntimeConfig) -> Result<(), Box<dyn StdErr>> {
     }
 
     println!("{}", template_list);
-    debug!("done listing available templates");
+    debug!("app: done listing available templates");
 
     Ok(())
 }
@@ -325,7 +331,7 @@ fn list_templates(app_conf: &mut RuntimeConfig) -> Result<(), Box<dyn StdErr>> {
 /// Using the output of [`generate_template_paths`], the [`TemplatePaths`] is filtered to contain
 /// entries explicitly requested by the user.
 fn parse_templates(app_conf: &mut RuntimeConfig) -> Result<TemplatePaths, Box<dyn StdErr>> {
-    debug!("parsing template options");
+    debug!("app: parsing template options");
 
     let template_list = app_conf.templates.clone();
 
@@ -343,7 +349,7 @@ fn parse_templates(app_conf: &mut RuntimeConfig) -> Result<TemplatePaths, Box<dy
         };
     }
 
-    debug!("selected available template options");
+    debug!("app: selected available template options");
 
     Ok(available_templates)
 }
@@ -353,7 +359,7 @@ fn parse_templates(app_conf: &mut RuntimeConfig) -> Result<TemplatePaths, Box<dy
 /// This function recurses on the content of the cached gitignore template repositories, appending
 /// filepath entries to the passed [`TemplatePaths`] item for all available templates.
 fn update_template_paths(dir: &Path, template_paths: &mut TemplatePaths) -> io::Result<()> {
-    debug!("updating template file paths for: {}", dir.display());
+    debug!("app: updating template file paths for {}", dir.display());
 
     // Store template name & path in hashmap.
     for entry in fs::read_dir(dir)? {
@@ -368,7 +374,7 @@ fn update_template_paths(dir: &Path, template_paths: &mut TemplatePaths) -> io::
 
         if entry_path.is_dir() {
             update_template_paths(&entry_path, template_paths)?;
-            debug!("template scan directory: {}", &entry_path_string);
+            debug!("app: template scan directory {}", &entry_path_string);
 
             continue;
         }
@@ -380,7 +386,10 @@ fn update_template_paths(dir: &Path, template_paths: &mut TemplatePaths) -> io::
         template.push(entry_path_string);
     }
 
-    debug!("done updating template file paths for: {}", dir.display());
+    debug!(
+        "app: done updating template file paths for {}",
+        dir.display()
+    );
 
     Ok(())
 }
@@ -409,7 +418,7 @@ fn generate_template_paths(app_conf: &mut RuntimeConfig) -> Result<TemplatePaths
 
         update_template_paths(Path::new(&absolute_repo_path), &mut template_paths)?;
     }
-    debug!("template hash map: {:#?}", template_paths);
+    debug!("app: template hash map {:#?}", template_paths);
 
     Ok(template_paths)
 }
