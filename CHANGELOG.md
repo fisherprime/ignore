@@ -143,6 +143,7 @@ All notable changes to ignore will be documented in this file.
 - Comment out unused crate
 - Change Config to a member of Options
 - Remove ref to unused crate
+- Add misc changes
 
 ### Refactor
 
