@@ -109,6 +109,6 @@ pub fn build_cli() -> Command {
                 .num_args(1..)
                 .value_name("TEMPLATE")
                 .action(ArgAction::Append)
-            )               
             )
+        )
 }
