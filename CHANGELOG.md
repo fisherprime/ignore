@@ -184,5 +184,6 @@ All notable changes to ignore will be documented in this file.
 - Rename methods & items
 - Spell check the source files
 - Reformat the code & misc changes
+- Resolve formatting issue
 
 <!-- fisher -->
