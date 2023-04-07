@@ -130,6 +130,7 @@ All notable changes to ignore will be documented in this file.
 - Bump patch version
 - Replace dirs dependency with dirs-next
 - Bump patch version
+- Update git2 dependency
 
 ### Performance
 
