@@ -1,7 +1,7 @@
 cache:
     backend: fs
     clear: false
-    dir: /home/fisher/.cache/trivy
+    dir: /tmp/trivy
     redis:
         ca: ""
         cert: ""
