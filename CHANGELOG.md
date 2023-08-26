@@ -131,6 +131,7 @@ All notable changes to ignore will be documented in this file.
 - Replace dirs dependency with dirs-next
 - Bump patch version
 - Update git2 dependency
+- Add vale config
 
 ### Performance
 
