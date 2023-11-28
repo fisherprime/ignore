@@ -1,6 +1,6 @@
 [package]
 name = "ignore"
-version = "1.5.9"
+version = "1.5.10"
 # documentation
 authors = ["fisherprime <mbock.ernie40@protonmail.ch>"]
 description = "A .gitignore file generator."
@@ -17,10 +17,10 @@ clap = { version = "4", features = ["cargo"] }
 clap_complete = "4"
 dirs-next = "2.0"
 fern = "0.6"
-git2 = "0.17"
+git2 = "0.18"
 lazy_static = "1.4.0" # For lazily (only one) evaluated statics.
 log = "0.4"
 rayon = "1.6.1"
 regex = "1"
 serde = { version = "1.0", features = ["derive"] }
-toml = "0.7"
+toml = "0.8"
