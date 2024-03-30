@@ -1,6 +1,6 @@
 [package]
 name = "ignore"
-version = "1.5.10"
+version = "1.5.11"
 # documentation
 authors = ["fisherprime <mbock.ernie40@protonmail.ch>"]
 description = "A .gitignore file generator."

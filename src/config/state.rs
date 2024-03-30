@@ -70,6 +70,7 @@ impl State {
             .read(true)
             .write(true)
             .create(true)
+            .truncate(false)
             .open(state_file_path.clone())?;
         self.state_path = state_file_path
             .into_os_string()
@@ -113,8 +114,8 @@ impl State {
             .read(true)
             .write(true)
             .create(true)
+            .truncate(true)
             .open(&self.state_path)?;
-        state_file.set_len(0)?;
 
         self.update_file(&mut state_file)
     }

@@ -130,6 +130,7 @@ impl Config {
             .read(true)
             .write(true)
             .create(true)
+            .truncate(false)
             .open(config_file_path)?;
         self.config_path = config_file_path.to_owned();
 
@@ -182,8 +183,8 @@ impl Config {
             .read(true)
             .write(true)
             .create(true)
+            .truncate(true)
             .open(&self.config_path)?;
-        config_file.set_len(0)?;
 
         self.update_file(&mut config_file)
     }

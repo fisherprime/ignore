@@ -118,6 +118,7 @@ fn generate_gitignore(app_confg: &mut RuntimeConfig) -> Result<(), Box<dyn StdEr
         .read(true)
         .write(true)
         .create(true)
+        .truncate(false)
         .open(&app_confg.gitignore_output_file)?;
     debug!("app: opened gitignore template consolidation file");
 
