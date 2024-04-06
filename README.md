@@ -6,14 +6,11 @@
 
 # Install
 
-- Clone the respoitory with `git clone --depth 1 https://gitlab.com/fisherprime/ignore`
-- Execute`cargo install --path .` to install the binary at `$CARGO_HOME`.
+- `cargo install --git https://gitlab.com/fisherprime/ignore`
 
 # Usage
 
-On initial execution, a config file will be generated & stored at
-`$XDG_CONFIG_HOME/ignore/config.toml` or your OS' specific config directory. The template sources &
-other options can be configured in this file.
+During the first execution, a configuration file will be generated and saved at either `$XDG_CONFIG_HOME/ignore/config.toml` (if available) or the default configuration directory for your operating system. The template sources and other options can be configured in this file.
 
 `ignore -h` will display the binary's usage instructions.
 
