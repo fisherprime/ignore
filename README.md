@@ -2,7 +2,7 @@
 
 [![pipeline status](https://gitlab.com/fisherprime/ignore/badges/master/pipeline.svg)](https://gitlab.com/fisherprime/ignore/-/commits/master)
 
-`ignore` is a tool used to generate gitignore files from user defined gitignore template sources,
+`ignore` is a tool designed to generate `.gitignore` files based on user-defined gitignore templates.
 
 # Install
 
