@@ -72,11 +72,11 @@ impl State {
             .create(true)
             .truncate(false)
             .open(state_file_path.clone())?;
-        self.state_path = state_file_path
+        state_file_path
             .into_os_string()
             .to_str()
             .unwrap()
-            .to_owned();
+            .clone_into(&mut self.state_path);
 
         if state_file.read_to_string(&mut state_content).unwrap_or(0) > 0 {
             if let Ok(state) = toml::from_str(state_content.trim()) {

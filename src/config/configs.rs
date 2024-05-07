@@ -132,7 +132,7 @@ impl Config {
             .create(true)
             .truncate(false)
             .open(config_file_path)?;
-        self.config_path = config_file_path.to_owned();
+        config_file_path.clone_into(&mut self.config_path);
 
         let mut config_file_content = String::new();
         if config_file

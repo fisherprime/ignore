@@ -107,12 +107,12 @@ impl RuntimeConfig {
             Some((GENERATE_SUBCMD, sub_matches)) => {
                 self.operation = Operation::GenerateGitignore;
 
-                self.gitignore_output_file = sub_matches
+                sub_matches
                     .get_one::<PathBuf>("output")
                     .expect("cli: unable to use default output")
                     .to_str()
                     .unwrap_or(DEFAULT_OUTPUT_FILE)
-                    .to_owned();
+                    .clone_into(&mut self.gitignore_output_file);
                 if let Some(templates_arg) = sub_matches.get_many::<String>("template") {
                     self.templates = templates_arg
                         .map(|tmpl| tmpl.to_owned())
