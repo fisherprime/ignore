@@ -33,7 +33,7 @@ macro_rules! absolute_repo_path {
 }
 
 /// Const specifying the column limit to wrap an [`Operation::ListAvailableTemplates`] list line.
-const TEMPLATE_LIST_OUTPUT_LIMIT: usize = 78;
+const TEMPLATE_LIST_OUTPUT_LIMIT: usize = 100;
 
 /// Const specifying the file content delimiter used.
 const FILE_CONTENT_DELIMITER: &str = "# ----";
@@ -273,8 +273,8 @@ fn dedup_templates(template: &str, template_vec: &mut [String]) -> Result<String
     Ok(insert_string)
 }
 
-/// Lists the names of projects, tools, languages,… from a locally cached gitignore template
-/// repository.
+/// Lists the names of projects, tools, languages,… from locally cached gitignore template
+/// repositories.
 fn list_templates(app_conf: &mut RuntimeConfig) -> Result<(), Box<dyn StdErr>> {
     // FIXME: Review this function for a better approach if any.
 
