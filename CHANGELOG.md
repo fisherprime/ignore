@@ -11,5 +11,6 @@ All notable changes to ignore will be documented in this file.
 ### Miscellaneous Tasks
 
 - Add vale config
+- Update git2 dependency to v0.19
 
 <!-- fisher -->
